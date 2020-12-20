@@ -4,6 +4,7 @@ from ansiwrap import *
 import jsonpickle, json
 import copy
 import pprint
+import re
 
 init()
 
@@ -12,13 +13,11 @@ class Item:
     def __init__(self, name: str, **kwargs):
         self.kwargs = kwargs
         self.quantity = kwargs.get("quantity", 1)
-        self.color = kwargs.get("color", [Fore.RED, Fore.GREEN, Fore.YELLOW, Fore.BLUE][hash(name) % 4])
+        self.color = kwargs.get("color", None)
         self.name = name
 
     def __str__(self):
-        str_repr = self.name
-        if self.quantity != 1:
-            str_repr += " x" + str(self.quantity)
+        str_repr = self.name + " x" + str(self.quantity)
         if self.color is not None:
             str_repr = self.color + str_repr + Style.RESET_ALL
         return str_repr
@@ -64,16 +63,23 @@ class InventorySystem:
     def __init__(self, **kwargs):
         self.kwargs = kwargs
         self.max_slots = kwargs.get("max_slots", None)
+        if self.max_slots is not None:
+            self.max_slots = max(1, self.max_slots)
         self.kwargs.update({"max_slots": self.max_slots})
 
         self._contents = []
         self.kwargs.update({"num_items": len(self._contents)})
 
         self.stack_limit = kwargs.get("stack_limit", None)
+        if self.stack_limit is not None:
+            self.stack_limit = max(1, self.stack_limit)
         self.kwargs.update({"stack_limit": self.stack_limit})
 
         self.remove_on_0 = kwargs.get("remove_on_0", True)
         self.kwargs.update({"remove_on_0": self.remove_on_0})
+
+        self.remove_ansi = kwargs.get("remove_ansi", True)
+        self.kwargs.update({"remove_ansi": self.remove_ansi})
 
     def _add_item(self, it: Item, new_slot=False):
         if it is None or it.name.strip() == "":
@@ -96,8 +102,11 @@ class InventorySystem:
         else:
             if self.max_slots is None or len(self._contents) < self.max_slots:
                 to_add = it.quantity
+                color = [Fore.RED, Fore.GREEN, Fore.YELLOW, Fore.BLUE][
+                    hash(it.name.strip()) % 4]
                 if self.stack_limit is not None and to_add > self.stack_limit:
                     self._contents.append(it.copy(quantity=self.stack_limit))
+
                     self._add_item(it.copy(quantity=to_add - self.stack_limit))
                 else:
                     self._contents.append(it.copy())
@@ -156,10 +165,24 @@ class InventorySystem:
             text_ = "Empty Inventory"
             presentation += Fore.MAGENTA + text_ + Style.RESET_ALL
             l_end = "+-" + "-" * len(text_)
+
+        if self.remove_ansi:
+            # ANSI code regex
+            ansi_escape = re.compile(r'\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])')
+            presentation = ansi_escape.sub('', presentation)
+
+
         return l_end + "\n" + presentation + "\n" + l_end
 
     def serialize_jsonpickle(self):
         return jsonpickle.encode(self)
 
 
+if __name__ == "__main__":
+    inv = InventorySystem(max_slots=3, remove_on_0=False)
 
+    inv += Item("Item1", quantity=0, color=Fore.RED)
+    inv += Item("Item2", quantity=0, color=Fore.GREEN)
+    inv += Item("Item3", quantity=0, color=Fore.BLUE)
+
+    print(inv)
