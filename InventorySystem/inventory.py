@@ -1,17 +1,22 @@
 from colorama import Fore, Style, init
 from ansiwrap import *
+import jsonpickle, json
+import copy
+import pprint
+
 init()
 
 
 class Item:
-    def __init__(self, name: str, quantity: int = 1, color: Fore = None):
+    def __init__(self, name: str, **kwargs):
+        self.kwargs = kwargs
+        self.quantity = kwargs.get("quantity", 1)
+        self.color = kwargs.get("color", [Fore.RED, Fore.GREEN, Fore.YELLOW, Fore.BLUE][hash(name) % 4])
         self.name = name
-        self.quantity = quantity
-        self.color = color
 
     def __str__(self):
         str_repr = self.name
-        if self.quantity > 1:
+        if self.quantity != 1:
             str_repr += " x" + str(self.quantity)
         if self.color is not None:
             str_repr = self.color + str_repr + Style.RESET_ALL
@@ -21,23 +26,30 @@ class Item:
         return self.name == other.name
 
     def __mul__(self, other: int):
-        return Item(self.name, self.quantity * other)
+        return self.copy(quantity=self.quantity * other)
 
     def __rmul__(self, other):
         return self.__mul__(other)
 
-    def copy(self):
-        return Item(self.name, self.quantity, self.color)
+    def copy(self, **kwargs):
+        """
+        Different from copy.deepcopy / copy.copy. Allows a copy to be made
+        while changing certain parameters, keeping all unspecified fields
+        """
+        return Item(self.name,
+                    quantity=kwargs.get("quantity", self.quantity),
+                    color=kwargs.get("color", self.color))
 
 
 class InventoryException(Exception):
     """Basic exception for errors raised by the inventory system"""
 
-    def __init__(self, inv, msg=None):
+    def __init__(self, inventory, msg=None):
         if msg is None:
             # Set some default useful error message
-            msg = "An error occured with Inventory %s" % inv.shortname()
-        super(InventoryException, self).__init__(msg)
+            msg = "An error occured with Inventory:\n%s" % inventory.pprint_inv()
+            super(InventoryException, self).__init__(msg)
+        self.msg = msg
         self.inv = inv
 
 
@@ -53,7 +65,13 @@ class InventorySystem:
         self.stack_limit = kwargs.get("stack_limit", None)
         self.kwargs.update({"stack_limit": self.stack_limit})
 
+        self.remove_on_0 = kwargs.get("remove_on_0", True)
+        self.kwargs.update({"remove_on_0": self.remove_on_0})
+
     def _add_item(self, it: Item, new_slot=False):
+        if it is None or it.name.strip() == "":
+            return self
+
         if it in self._contents and not new_slot:
             in_lst = self._get_items(self._contents, it)
             to_add = it.quantity
@@ -67,13 +85,13 @@ class InventorySystem:
 
             if to_add > 0:
                 # add new slot
-                self._add_item(Item(it.name, to_add), new_slot=True)
+                self._add_item(it.copy(quantity=to_add), new_slot=True)
         else:
             if self.max_slots is None or len(self._contents) < self.max_slots:
                 to_add = it.quantity
                 if self.stack_limit is not None and to_add > self.stack_limit:
-                    self._contents.append(Item(it.name, self.stack_limit))
-                    self._add_item(Item(it.name, to_add - self.stack_limit))
+                    self._contents.append(it.copy(quantity=self.stack_limit))
+                    self._add_item(it.copy(quantity=to_add - self.stack_limit))
                 else:
                     self._contents.append(it.copy())
             else:
@@ -82,14 +100,50 @@ class InventorySystem:
         self.kwargs.update({"num_items": len(self._contents)})
         return self
 
+    def _remove_item(self, it: Item):
+        if it not in self._contents:
+            raise InventoryException(self,
+                                     msg="Cannot remove non-existent item")
+        it_lst = self._get_items(self._contents, it, all_opts=True)
+        it_lst.sort(key=lambda it: it.quantity)
+
+        to_remove = it.quantity
+
+        while len(it_lst) > 0 and to_remove > 0:
+            next_it, it_lst = it_lst[0], it_lst[1:]
+            can_remove = min(next_it.quantity, to_remove)
+            next_it.quantity -= can_remove
+            to_remove -= can_remove
+
+        if to_remove > 0:
+            raise InventoryException(self,
+                                     msg="Cannot remove more items")
+
+        if self.remove_on_0:
+            self._contents = [x for x in self._contents if x.quantity != 0]
+
+        return self
+
+    def _get_items(self, lst, val, all_opts=False):
+        return [x for x in lst if x == val and
+                (self.stack_limit is None or x.quantity < self.stack_limit
+                 or (x.quantity == self.stack_limit and all_opts))]
+
+    def pprint_inv(self):
+        return pprint.pformat(json.loads(inv.serialize_jsonpickle()))
+
     def __add__(self, other: Item):
-        return self._add_item(other)
+        return copy.deepcopy(self)._add_item(other)
+
+    def __sub__(self, other: Item):
+        return copy.deepcopy(self)._remove_item(other)
 
     def __str__(self):
         self._contents.sort(key=lambda item: item.quantity, reverse=True)
         self._contents.sort(key=lambda item: item.name)
 
-        l_end = "+-" + "-" * max([0] + [ansilen(str(i)) for i in self._contents])
+        l_end = "+-" + "-" * max(
+            [0] + [ansilen(str(i)) for i in self._contents])
         presentation = "| " + "\n| ".join([str(i) for i in self._contents])
         if presentation == "| ":
             text_ = "Empty Inventory"
@@ -97,25 +151,30 @@ class InventorySystem:
             l_end = "+-" + "-" * len(text_)
         return l_end + "\n" + presentation + "\n" + l_end
 
-    def _get_items(self, lst, val):
-        return [x for x in lst if x == val and (self.stack_limit is None or
-                                                x.quantity < self.stack_limit)]
-
-    def shortname(self):
-        shortname = "<InventorySystem: "
-
-        for key, val in self.kwargs.items():
-            shortname += "\n\t%s = %s," % (key, str(val))
-
-        return shortname[:-1] + "\n>"
+    def serialize_jsonpickle(self):
+        return jsonpickle.encode(self)
 
 
 if __name__ == "__main__":
-    inv = InventorySystem(stack_limit=5, max_slots=4)
-    apple = Item("Apple", 2,  color=Fore.RED)
-    orange = Item("Orange", 2, color=Fore.YELLOW)
+    inv = InventorySystem()
+    apple = Item("Apple", color=Fore.RED)
+    orange = Item("Orange", color=Fore.YELLOW)
 
-    inv += apple
-    inv += orange
+    text = input("> ")
+    while text != "quit":
+        try:
+            words = text.split(" ")
+            if len(words) >= 3:
+                num = int(words[1])
+                item = words[2]
+                if words[0] == "give":
+                    inv += Item(item, quantity=num)
+                elif words[0] == "take":
+                    inv -= Item(item, quantity=num)
+            print(inv)
+        except InventoryException as e:
+            print(e.msg)
 
-    print(inv.shortname(), inv, sep="\n")
+        text = input("> ")
+
+
