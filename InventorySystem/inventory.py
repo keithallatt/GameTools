@@ -10,6 +10,7 @@ init()
 
 
 class Item:
+    """ An item used in an inventory system """
     def __init__(self, name: str, **kwargs):
         self.kwargs = kwargs
         self.quantity = kwargs.get("quantity", 1)
@@ -60,6 +61,7 @@ class InventoryException(Exception):
 
 
 class InventorySystem:
+    """ A flexible inventory system """
     def __init__(self, **kwargs):
         self.kwargs = kwargs
         self.max_slots = kwargs.get("max_slots", None)
@@ -148,6 +150,23 @@ class InventorySystem:
     def pprint_inv(self):
         return pprint.pformat(json.loads(inv.serialize_jsonpickle()))
 
+    def serialize_json_pickle(self):
+        return jsonpickle.encode(self)
+
+    def set_stack_limit(self, stack_limit):
+        all_contents = self._contents
+        self.stack_limit = stack_limit
+        self._contents = []
+        for item in all_contents:
+            self._add_item(item)
+
+    def set_max_slots(self, max_slots):
+        all_contents = self._contents
+        self.max_slots = max_slots
+        self._contents = []
+        for item in all_contents:
+            self._add_item(item)
+
     def __add__(self, other: Item):
         return copy.deepcopy(self)._add_item(other)
 
@@ -174,15 +193,8 @@ class InventorySystem:
 
         return l_end + "\n" + presentation + "\n" + l_end
 
-    def serialize_jsonpickle(self):
-        return jsonpickle.encode(self)
-
 
 if __name__ == "__main__":
-    inv = InventorySystem(max_slots=3, remove_on_0=False)
+    inv = InventorySystem(stack_limit=5)
 
-    inv += Item("Item1", quantity=0, color=Fore.RED)
-    inv += Item("Item2", quantity=0, color=Fore.GREEN)
-    inv += Item("Item3", quantity=0, color=Fore.BLUE)
 
-    print(inv)

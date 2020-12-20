@@ -52,3 +52,16 @@ Therefore, to specify a 'Rule of 99' style inventory, we'd write:
 inv = Inventory(stack_limit=99)
 ```
 
+<h4><u>'Set in Stone' style</u></h4>
+
+In a 'Set in Stone' style inventory, all item slots belong to one specific item.
+This could be health potions, or ammunition for an FPS game, or maybe a wallet
+of some kind. In this sense, there is no way to empty a slot, it still takes 
+up a slot even when you have 0 of the item, or if there is only ever one item.
+
+Therefore, to specify a 'Set in Stone' style inventory, with `n` slots, we'd
+write:
+
+```
+inv = Inventory(max_slots=n, remove_on_0=False)
+```
