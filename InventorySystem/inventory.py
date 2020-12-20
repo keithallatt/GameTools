@@ -1,3 +1,4 @@
+from __future__ import annotations
 from colorama import Fore, Style, init
 from ansiwrap import *
 import jsonpickle, json
@@ -31,6 +32,12 @@ class Item:
     def __rmul__(self, other):
         return self.__mul__(other)
 
+    def __add__(self, other: Item):
+        if self.name != other.name:
+            raise InventoryException("Item addition on different items")
+
+        return self.copy(quantity=self.quantity + other.quantity)
+
     def copy(self, **kwargs):
         """
         Different from copy.deepcopy / copy.copy. Allows a copy to be made
@@ -50,7 +57,7 @@ class InventoryException(Exception):
             msg = "An error occured with Inventory:\n%s" % inventory.pprint_inv()
             super(InventoryException, self).__init__(msg)
         self.msg = msg
-        self.inv = inv
+        self.inv = inventory
 
 
 class InventorySystem:
@@ -154,27 +161,5 @@ class InventorySystem:
     def serialize_jsonpickle(self):
         return jsonpickle.encode(self)
 
-
-if __name__ == "__main__":
-    inv = InventorySystem()
-    apple = Item("Apple", color=Fore.RED)
-    orange = Item("Orange", color=Fore.YELLOW)
-
-    text = input("> ")
-    while text != "quit":
-        try:
-            words = text.split(" ")
-            if len(words) >= 3:
-                num = int(words[1])
-                item = words[2]
-                if words[0] == "give":
-                    inv += Item(item, quantity=num)
-                elif words[0] == "take":
-                    inv -= Item(item, quantity=num)
-            print(inv)
-        except InventoryException as e:
-            print(e.msg)
-
-        text = input("> ")
 
 
