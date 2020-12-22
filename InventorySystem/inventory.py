@@ -15,12 +15,15 @@ class Item:
         self.kwargs = kwargs
         self.quantity = kwargs.get("quantity", 1)
         self.color = kwargs.get("color", None)
+        self.price = kwargs.get("price", None)
         self.name = name
 
     def __str__(self):
         str_repr = self.name + " x" + str(self.quantity)
         if self.color is not None:
             str_repr = self.color + str_repr + Style.RESET_ALL
+        if self.price is not None:
+            str_repr += " $" + str(self.price)
         return str_repr
 
     def __eq__(self, other):
@@ -38,6 +41,18 @@ class Item:
 
         return self.copy(quantity=self.quantity + other.quantity)
 
+    def align(self, item_list):
+        max_name_length = max([0]+[len(x.name) for x in item_list])
+        max_quantity_length = max([0]+[len(str(x.quantity)) for x in item_list])
+        max_price_length = max([0]+[len(str(x.price)) for x in item_list
+                                    if x.price is not None])
+
+        name = self.name.ljust(max_name_length)
+        quantity = str(self.quantity).ljust(max_quantity_length)
+        price = str(self.price).ljust(max_price_length)
+
+        return name + "   x" + quantity + ("   $" + price if self.price is not None else "")
+
     def copy(self, **kwargs):
         """
         Different from copy.deepcopy / copy.copy. Allows a copy to be made
@@ -45,7 +60,8 @@ class Item:
         """
         return Item(self.name,
                     quantity=kwargs.get("quantity", self.quantity),
-                    color=kwargs.get("color", self.color))
+                    color=kwargs.get("color", self.color),
+                    price=kwargs.get("price", self.price))
 
 
 class InventoryException(Exception):
@@ -148,7 +164,7 @@ class InventorySystem:
                  or (x.quantity == self.stack_limit and all_opts))]
 
     def pprint_inv(self):
-        return pprint.pformat(json.loads(inv.serialize_jsonpickle()))
+        return pprint.pformat(json.loads(inv.serialize_json_pickle()))
 
     def serialize_json_pickle(self):
         return jsonpickle.encode(self)
@@ -167,6 +183,13 @@ class InventorySystem:
         for item in all_contents:
             self._add_item(item)
 
+    def num_slots(self):
+        return len(self._contents)
+
+    def get_slots(self):
+        """ return a copy of the contents """
+        return self._contents[::]
+
     def __add__(self, other: Item):
         return copy.deepcopy(self)._add_item(other)
 
@@ -177,9 +200,13 @@ class InventorySystem:
         self._contents.sort(key=lambda item: item.quantity, reverse=True)
         self._contents.sort(key=lambda item: item.name)
 
+        item_lst_str = [
+            i.align(self._contents)
+            for i in self._contents
+        ]
         l_end = "+-" + "-" * max(
-            [0] + [ansilen(str(i)) for i in self._contents])
-        presentation = "| " + "\n| ".join([str(i) for i in self._contents])
+            [0] + [ansilen(i) for i in item_lst_str])
+        presentation = "| " + "\n| ".join(item_lst_str)
         if presentation == "| ":
             text_ = "Empty Inventory"
             presentation += Fore.MAGENTA + text_ + Style.RESET_ALL

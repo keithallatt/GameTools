@@ -13,27 +13,28 @@ class NPC:
         while True:
             prompt, next_options = self.conversation[line]
             if prompt is not None and prompt != "":
-                print(prompt, "( " + "/".join(next_options.keys()) + ")"
-                      if len(next_options) != 0 else "")
-            if len(next_options) != 0:
-                response = input("> ")
-                if response not in next_options.keys():
-                    if response == "leave":
-                        print(self.goodbye)
-                        break
-                    print(self.confusion)
-                    continue
+                print(prompt if type(prompt) == str
+                      else prompt(),
+                      "(" + "/".join(next_options.keys()) + ")"
+                      if type(next_options) is dict and len(next_options) != 0
+                      else "")
+            if type(next_options) is dict:
+                if len(next_options) != 0:
+                    response = input(">> ")
+                    if response not in next_options.keys():
+                        if response == "leave":
+                            print(self.goodbye)
+                            break
+                        print(self.confusion)
+                        continue
+                    else:
+                        line = next_options[response]
                 else:
-                    line = next_options[response]
-            else:
-                break
+                    break
+            elif callable(next_options):
+                # next option is a function
+                line = next_options()
 
 
 if __name__ == "__main__":
-    conversation = [("Yes or no, or repeat?", {"y": 1, "n": 2, "r": 0}),
-                    ("You said yes. Again?", {"y": 0, "n": 3}),
-                    ("You said no. Again?", {"y": 0, "n": 3}),
-                    ("Goodbye!", {})]
-
-    npc = NPC("Character 1", conversation=conversation)
-    npc.talk()
+    pass
