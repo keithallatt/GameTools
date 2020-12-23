@@ -40,7 +40,7 @@ where each item can take up a different number of slots.
 
 ### Example Inventories
 
-<h4><u>Minecraft style</u></h4>
+<h4><u>'Minecraft' style</u></h4>
 
 In Minecraft, there are 36 slots, in which each can (usually) contain 64 items.
 
