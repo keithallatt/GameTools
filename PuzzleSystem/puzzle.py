@@ -23,7 +23,7 @@ class PuzzleSystem:
 
 class AnagramPuzzle(PuzzleSystem):
     """ Cog / wheel puzzle where dials turned until the right solution appears. """
-    def __init__(self, solution: str, false_positives: list[str], wl: int = 3):
+    def __init__(self, solution: str, false_positives: list[str], wl: int = 3, wheels: list[str] = None):
         super().__init__()
         self.solution = solution
 

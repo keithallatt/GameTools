@@ -1,6 +1,18 @@
 from colorama import Fore, Back, Style, init
 from random import randrange, shuffle
-import re
+import sys
+
+
+class RecursionLimit:
+    def __init__(self, limit):
+        self.limit = limit
+        self.old_limit = sys.getrecursionlimit()
+
+    def __enter__(self):
+        sys.setrecursionlimit(self.limit)
+
+    def __exit__(self, type, value, tb):
+        sys.setrecursionlimit(self.old_limit)
 
 init()
 
@@ -41,7 +53,7 @@ class MapException(Exception):
     def __init__(self, map_obj, msg=None):
         if msg is None:
             # Set some default useful error message
-            msg = "An error occured with Map:\n%s" % str(map_obj)
+            msg = "An error occured with Map:"
             super(MapException, self).__init__(msg)
         self.msg = msg
         self.map_obj = map_obj
@@ -61,10 +73,19 @@ class MazeSystem(Map):
 
     def __init__(self, width, height, *args):
         super().__init__(width * 2 + 1, height * 2 + 1, *args)
-        self.map = self._gen_maze()
+        limit = 1000
+        max_limit = 15000
+        while limit < max_limit:
+            try:
+                self.map = self._gen_maze(limit)
+                break
+            except RecursionError:
+                limit += 100
+        else:
+            raise MapException("Failed Initialization", msg="Hit Upper Recursion Limit of 15000.")
 
-
-    def _gen_maze(self):
+    def _gen_maze(self, rl=1000):
+        """ Recursion Limit 5000 is min to generate 50 by 50 maze most of the time """
         w, h = self.width, self.height
         vis = [[0] * w + [1] for _ in range(h)] + [[1] * (w + 1)]
         ver = [
@@ -88,7 +109,8 @@ class MazeSystem(Map):
                     ver[y][max(x, xx)] = "00"
                 walk(xx, yy)
 
-        walk(randrange(w), randrange(h))
+        with RecursionLimit(rl):
+            walk(randrange(w), randrange(h))
 
         s = ""
         for (a, b) in zip(hor, ver):
@@ -149,14 +171,7 @@ class BlankSystem(Map):
 
 
 if __name__ == "__main__":
-    map_obj = BlankSystem(21, 21)
-    sub_map = MazeSystem(2, 2)
+    k = 150
+    sub_map = MazeSystem(k, k)
 
-    BlankSystem.draw_rect_to_map(map_obj, "MAP_CHAR_BLOCK_WALL", 0, 0, 21, 21)
-
-    BlankSystem.draw_sub_map(map_obj, sub_map, 0, 0)
-
-    set_map_char_block("MAP_CHAR_BLOCK_WALKABLE", clr="lightwhite")
-    set_map_char_block("MAP_CHAR_BLOCK_WALL", clr="black")
-
-    print(map_obj)
+    #print(sub_map)

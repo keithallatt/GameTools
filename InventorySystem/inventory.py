@@ -258,6 +258,3 @@ class InventorySystem:
 
 if __name__ == "__main__":
     inv = InventorySystem(weight_based=True, weight_limit=20)
-
-
-
