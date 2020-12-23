@@ -74,7 +74,7 @@ class MazeSystem(Map):
     def __init__(self, width, height, *args):
         super().__init__(width * 2 + 1, height * 2 + 1, *args)
         limit = 1000
-        max_limit = 15000
+        max_limit = 10000
         while limit < max_limit:
             try:
                 self.map = self._gen_maze(limit)
@@ -82,11 +82,12 @@ class MazeSystem(Map):
             except RecursionError:
                 limit += 100
         else:
-            raise MapException("Failed Initialization", msg="Hit Upper Recursion Limit of 15000.")
+            raise MapException("Failed Initialization", msg="Hit Upper Recursion Limit of 10000.")
 
     def _gen_maze(self, rl=1000):
         """ Recursion Limit 5000 is min to generate 50 by 50 maze most of the time """
-        w, h = self.width, self.height
+        w, h = self.width // 2, self.height // 2
+
         vis = [[0] * w + [1] for _ in range(h)] + [[1] * (w + 1)]
         ver = [
                   ["10"] * w +
@@ -171,7 +172,6 @@ class BlankSystem(Map):
 
 
 if __name__ == "__main__":
-    k = 150
+    k = 10
     sub_map = MazeSystem(k, k)
-
-    #print(sub_map)
+    print(sub_map)

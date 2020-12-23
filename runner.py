@@ -58,6 +58,5 @@ total_lines += count_lines(start="/Users/kallatt/GitHub/GameTools/MapSystem")
 total_lines += count_lines(start="/Users/kallatt/GitHub/GameTools/NPCSystem")
 total_lines += count_lines(start="/Users/kallatt/GitHub/GameTools/PuzzleSystem")
 total_lines += count_lines(start="/Users/kallatt/GitHub/GameTools/CombatSystem")
-
 print("Total lines of code: "+str(total_lines))
-"""
+#"""
