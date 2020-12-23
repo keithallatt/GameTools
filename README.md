@@ -1,8 +1,7 @@
-# GameTools
+# Text-Adventures Genre Game Tools
 
 This repository is designed to be a framework for text based game development, 
 incorporating inventory systems, conversation systems (with NPCs) and the like.
-
 
 ## InventorySystem
 
@@ -101,5 +100,6 @@ irrelevant.
 
 This system is a specific kind of weight-based system, and therefore is defined
 the same way, the only difference being all weights must be integers. 
+
 
 
