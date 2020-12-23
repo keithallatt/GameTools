@@ -10,7 +10,9 @@ incorporating inventory systems, conversation systems (with NPCs) and the like.
 Inventory(max_slots: int, 
           stack_limit: int, 
           remove_on_0: bool, 
-          remove_ansi: bool)
+          remove_ansi: bool,
+          weight_based: bool,
+          weight_limit: int)
 ```
 
 All options in the inventory system are accessible solely through keyword
@@ -28,6 +30,13 @@ allowing only certain items to appear.
 The `remove_ansi` option by default is set to false. If `remove_ansi` is set to
 true, then all string representations of the inventory have ANSI escape codes 
 removed.
+
+The `weight_based` option by default is set to false. if `weight_based` is set
+to true, then adding and storing items is dependent on unit weight of each item
+and ignores any options set by `stack_limit` or `max_slots`. If the weight 
+limit (`weight_limit`), and the unit weight of every item is integral (an 
+integer), then the inventory system approximates a slot based inventory system 
+where each item can take up a different number of slots.
 
 ### Example Inventories
 
@@ -65,3 +74,32 @@ write:
 ```
 inv = Inventory(max_slots=n, remove_on_0=False)
 ```
+
+<h4><u>'Weight based' style</u></h4>
+
+Like in Fallout 3, or Oblivion, this inventory style takes into account the 
+weight of each item, where each item can have any positive real-valued weight.
+
+The inventory can continue to accept new items until adding a new item would
+cause the total weight of the inventory's capacity to exceed the weight limit.
+
+Therefore, to specify a 'weight based' inventory with weight limit `L`, 
+we'd write:
+
+```
+inv = Inventory(weight_based=True, weight_limit=L)
+```
+
+<h4><u>'Slot based' style</u></h4>
+
+In a 'Slot basedd' style inventory, all items take up a specific number of slots.
+For example an item could take up 1, 2, 3, or any other number of slots.
+In Subnautica, an element of the inventory system came down to the dimension of
+the item model, such as a 2 by 2 slot coverage v.s. a 2 by 3, or even 3 by 3.
+In this style, that restriction is not there, since in this system, position is
+irrelevant.
+
+This system is a specific kind of weight-based system, and therefore is defined
+the same way, the only difference being all weights must be integers. 
+
+
