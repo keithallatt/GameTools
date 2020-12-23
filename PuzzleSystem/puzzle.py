@@ -42,7 +42,8 @@ class AnagramPuzzle(PuzzleSystem):
     """ Cog / wheel puzzle where dials turned until the right solution appears. """
     def __init__(self, solution: str,
                  false_positives: list[str] = None,
-                 wl: int = 3, wheels: list[str] = None,
+                 wl: int = 3,
+                 wheels: list[str] = None,
                  hint=None):
         super().__init__()
         self.hint = hint
@@ -74,10 +75,13 @@ class AnagramPuzzle(PuzzleSystem):
                        [chr(random.randint(ord('a'), ord('z'))) for i in range(wl - len(wheel))]
                        for wheel in self.wheels]
 
-        for i in range(len(self.wheels)):
-            wheel = self.wheels[i]
-            random.shuffle(wheel)
-            self.wheels[i] = wheel
+        while self.is_solved():
+            for i in range(len(self.wheels)):
+                wheel = self.wheels[i]
+                random.shuffle(wheel)
+                self.wheels[i] = wheel
+
+
 
     def __str__(self):
         num_before_after = len(self.wheels[0]) // 2

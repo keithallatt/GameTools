@@ -1,25 +1,13 @@
 # tests/runner.py
 import unittest
 import os
+from io import StringIO
+import re
 
-
-# import your test modules
+# import test modules
 from InventorySystem.test_inventory import InventoryTest
 from MapSystem.test_map import MapTest
 from NPCSystem.test_npc import NPCTest
-
-# initialize the test suite
-loader = unittest.TestLoader()
-suite = unittest.TestSuite()
-
-# add tests to the test suite
-suite.addTests(loader.loadTestsFromTestCase(InventoryTest))
-suite.addTests(loader.loadTestsFromTestCase(MapTest))
-suite.addTests(loader.loadTestsFromTestCase(NPCTest))
-
-# initialize a runner, pass it your suite and run it
-runner = unittest.TextTestRunner(verbosity=3)
-result = runner.run(suite)
 
 
 def count_lines(start, lines=0, header=True, begin_start=None):
@@ -42,7 +30,7 @@ def count_lines(start, lines=0, header=True, begin_start=None):
                         reldir_of_thing = '.' + thing.replace(start, '')
 
                     print('{:>10} |{:>10} | {:<20}'.format(
-                            newlines, lines, reldir_of_thing))
+                        newlines, lines, reldir_of_thing))
 
     for thing in os.listdir(start):
         thing = os.path.join(start, thing)
@@ -51,12 +39,59 @@ def count_lines(start, lines=0, header=True, begin_start=None):
 
     return lines
 
-"""
-total_lines = 0
-total_lines += count_lines(start="/Users/kallatt/GitHub/GameTools/InventorySystem")
-total_lines += count_lines(start="/Users/kallatt/GitHub/GameTools/MapSystem")
-total_lines += count_lines(start="/Users/kallatt/GitHub/GameTools/NPCSystem")
-total_lines += count_lines(start="/Users/kallatt/GitHub/GameTools/PuzzleSystem")
-total_lines += count_lines(start="/Users/kallatt/GitHub/GameTools/CombatSystem")
-print("Total lines of code: "+str(total_lines))
-#"""
+
+def statistics():
+    working_dir = os.getcwd() + os.sep
+
+    total_lines = 0
+    folders = [
+        "InventorySystem",
+        "MapSystem",
+        "NPCSystem",
+        "PuzzleSystem",
+        "CombatSystem"
+    ]
+
+    for folder in folders:
+        print("-"*44)
+        print(f"Counting {working_dir + folder}")
+        print("-"*44)
+        total_lines = count_lines(start=working_dir + folder, lines=total_lines)
+    print("Total lines of code: " + str(total_lines))
+
+
+def run_all_tests():
+    # initialize the test suite
+    loader = unittest.TestLoader()
+    suite = unittest.TestSuite()
+
+    # add tests to the test suite
+    suite.addTests(loader.loadTestsFromTestCase(InventoryTest))
+    suite.addTests(loader.loadTestsFromTestCase(MapTest))
+    suite.addTests(loader.loadTestsFromTestCase(NPCTest))
+
+    # initialize a runner, pass it your suite and run it
+    iostream = StringIO()
+
+    result = unittest.TextTestRunner(verbosity=2, stream=iostream).run(suite)
+
+    stream_result = iostream.getvalue()
+
+    return result, stream_result
+
+
+result, stream_result = run_all_tests()
+
+pat = re.compile(r"<unittest\.runner\.TextTestResult run=(\d+) errors=(\d+) failures=(\d+)>")
+
+m = pat.match(str(result))
+run, errors, failures = m.groups()
+
+print("-"*70)
+print("Running test suite ... ")
+print("-"*70)
+print(stream_result)
+print("Tests run: %s\nErrors: %s\nFailures: %s\n\n" % (run, errors, failures))
+
+
+statistics()
