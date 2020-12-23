@@ -2,14 +2,16 @@
 import unittest
 
 # import your test modules
-import InventorySystem.test_inventory
+from InventorySystem.test_inventory import InventoryTest
+from MapSystem.test_map import MapTest
 
 # initialize the test suite
 loader = unittest.TestLoader()
 suite  = unittest.TestSuite()
 
 # add tests to the test suite
-suite.addTests(loader.loadTestsFromModule(InventorySystem.test_inventory))
+suite.addTests(loader.loadTestsFromTestCase(InventoryTest))
+suite.addTests(loader.loadTestsFromTestCase(MapTest))
 
 # initialize a runner, pass it your suite and run it
 runner = unittest.TextTestRunner(verbosity=3)

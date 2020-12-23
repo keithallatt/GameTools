@@ -4,7 +4,7 @@ from InventorySystem.inventory import Item, InventorySystem, InventoryException
 from colorama import Fore
 
 
-class Test(TestCase):
+class InventoryTest(TestCase):
     def test_item(self):
         # test a range of multiplications of items
         for init_q in range(10):
