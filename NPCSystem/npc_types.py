@@ -1,4 +1,4 @@
-from npc_conversation import *
+from NPCSystem.npc_conversation import *
 from InventorySystem.inventory import *
 
 

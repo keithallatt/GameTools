@@ -1,6 +1,7 @@
 from unittest import TestCase
 # need MapSystem.map since suite outside inventory system folder
 from MapSystem.map import Map, MazeSystem, BlankSystem, MapException
+import MapSystem.map as map_sys
 
 class MapTest(TestCase):
     def test_map_copy(self):
@@ -15,6 +16,14 @@ class MapTest(TestCase):
                     for j in range(map_outer.height):
                         if i < map_inner.width and j < map_inner.height:
                             self.assertEqual(map_outer.map[i][j], map_inner.map[i][j])
+
+    def test_map_exception(self):
+        # test setting to non-existent color key
+        with self.assertRaises(MapException) as context:
+            map_sys.set_map_char_block(clr="ObviouslyWrong")
+
+        self.assertTrue('Color key non-existent' in
+                        context.exception.msg)
 
 
 
