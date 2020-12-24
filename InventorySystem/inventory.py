@@ -405,7 +405,7 @@ class InventorySystem:
         inv_name = ""
         if self.item_filter is not None:
             # get all categories
-            categories = [c.name
+            categories = [c.before_str() + c.name + Style.RESET_ALL
                           for c, v in self.item_filter.filter_cats.items()
                           if v and c is not None and c is not Any]
 
@@ -423,7 +423,7 @@ class InventorySystem:
         text_ = "Empty Inventory"
 
         width = max(
-            [len(inv_name), (len(text_)+1 if len(self._contents) == 0 else 0)] +
+            [ansilen(inv_name), (ansilen(text_)+1 if len(self._contents) == 0 else 0)] +
             [ansilen(i) for i in item_lst_str])
 
         l_end = "+-" + "-" * width + "+"
@@ -529,7 +529,7 @@ if __name__ == "__main__":
     materials_cat = ItemCategory("Materials", fg=Fore.LIGHTBLUE_EX)
     key_items_cat = ItemCategory("Key Items", fg=Fore.LIGHTMAGENTA_EX)
 
-    filters = ItemFilter.generate_filters([[food_cat], [materials_cat], [key_items_cat]])
+    filters = ItemFilter.generate_filters([[food_cat, materials_cat], [key_items_cat]])
     inv_sys_s = [InventorySystem(item_filter=f) for f in filters]
 
     apple = Item("Apple", category=food_cat)
