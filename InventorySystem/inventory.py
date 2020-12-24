@@ -523,6 +523,18 @@ class Inventory:
                     inv_copy.pages[i] += it
         return inv_copy
 
+    def __sub__(self, other: Union[List[Item], Item]):
+        inv_copy = copy.deepcopy(self)
+        if type(other) == Item:
+            # remove a single item
+            other = [other]
+        for it in other:
+            it_cat = it.category
+            for i in range(len(inv_copy.pages)):
+                if inv_copy.pages[i].item_filter.accepts(it_cat):
+                    inv_copy.pages[i] -= it
+        return inv_copy
+
 
 if __name__ == "__main__":
     food_cat = ItemCategory("Food", fg=Fore.GREEN)
@@ -546,6 +558,7 @@ if __name__ == "__main__":
     inv = Inventory(pages=inv_sys_s)
 
     inv += item_list_
+    inv -= item_list_
 
     print(inv)
 
