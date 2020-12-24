@@ -8,6 +8,7 @@ import pprint
 import re
 from typing import Union, Dict, Any, List
 import warnings
+import random
 
 init()
 
@@ -170,8 +171,7 @@ class ItemFilter:
         all_cats = sum(filter_list, start = [])
         all_cats_set = set(all_cats)
         if len(all_cats) != len(all_cats_set):
-            raise InventoryException(None,
-                                     msg="Cannot generate filters from non-pairwise disjoint lists")
+            raise InventoryException(None, msg="Cannot generate from non-pairwise disjoint lists")
 
         last_filter = {Any: True, None: True}
 
@@ -179,9 +179,9 @@ class ItemFilter:
             last_filter.update({cat: False for cat in filter_cat})
 
         defined_filters = [{cat: True for cat in filter_cat} for filter_cat in filter_list]
+        defined_filters.append(last_filter)
 
-        return defined_filters + [last_filter]
-
+        return [ItemFilter(f) for f in defined_filters]
 
     def __str__(self):
         return str({str(k): v for k, v in self.filter_cats.items()})
@@ -410,11 +410,11 @@ class InventorySystem:
                           if v and c is not None and c is not Any]
 
             if self.item_filter.filter_cats[None]:
-                categories = ["General"]
+                categories += ["General"]
             if self.item_filter.filter_cats[Any]:
                 categories = ["Categorized"]
             if self.item_filter.filter_cats[None] and self.item_filter.filter_cats[Any]:
-                categories = ["All"]
+                categories = ["All" if self.item_filter.is_all_encompassing() else "Other"]
 
             inv_name = "| " + " & ".join(categories)
 
@@ -472,14 +472,25 @@ class Inventory:
 
         for inv_sys in [inv_sys for inv_sys in self.pages if inv_sys.item_filter.is_categorized()]:
             restrictions = inv_sys.item_filter.get_restricted()
+
             inner_break = False
             for cat in all_cats_set:
-                if cat not in restrictions:
+                if cat is not None and cat not in restrictions:
                     warnings.warn(f"Inventory System does not restrict other systems' acceptances.")
                     inner_break = True
                     break
             if inner_break:
                 break
+
+        # last check to ensure nothing has gone wrong
+        for category in list(all_cats_set) + [ItemCategory("random:"+str(random.random()))]:
+            num_accepting = 0
+            for inv_sys in self.pages:
+                if inv_sys.item_filter.accepts(category):
+                    num_accepting += 1
+
+            if num_accepting > 1:
+                warnings.warn(f"Multiple inventory systems accept category {category}.")
 
     def __str__(self):
         if not self.all_pages_in_str:
@@ -500,16 +511,26 @@ class Inventory:
             for line in range(max_lines)
         ])
 
+    def __add__(self, other: Union[List[Item], Item]):
+        inv_copy = copy.deepcopy(self)
+        if type(other) == Item:
+            # add a single item
+            other = [other]
+        for it in other:
+            it_cat = it.category
+            for i in range(len(inv_copy.pages)):
+                if inv_copy.pages[i].item_filter.accepts(it_cat):
+                    inv_copy.pages[i] += it
+        return inv_copy
+
 
 if __name__ == "__main__":
     food_cat = ItemCategory("Food", fg=Fore.GREEN)
     materials_cat = ItemCategory("Materials", fg=Fore.LIGHTBLUE_EX)
     key_items_cat = ItemCategory("Key Items", fg=Fore.LIGHTMAGENTA_EX)
 
-    filters = ItemFilter.generate_filters([[food_cat, materials_cat], [key_items_cat, None]])
-
-    for f in filters:
-        print({str(k): v for k, v in f.items()})
+    filters = ItemFilter.generate_filters([[food_cat], [materials_cat], [key_items_cat]])
+    inv_sys_s = [InventorySystem(item_filter=f) for f in filters]
 
     apple = Item("Apple", category=food_cat)
     orange = Item("Orange", category=food_cat)
@@ -522,5 +543,9 @@ if __name__ == "__main__":
 
     item_list_ = [apple, orange, grape, wood, stone, dirt, marble, key]
 
-    inv = Inventory(pages=())
+    inv = Inventory(pages=inv_sys_s)
+
+    inv += item_list_
+
     print(inv)
+
