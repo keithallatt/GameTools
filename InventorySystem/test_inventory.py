@@ -1,6 +1,6 @@
 from unittest import TestCase
 # need InventorySystem.inventory since suite outside inventory system folder
-from InventorySystem.inventory import Item, InventorySystem, InventoryException
+from InventorySystem.inventory import Item, InventorySystem, InventoryException, FILTER_ACCEPT_ALL
 from colorama import Fore
 
 
@@ -26,7 +26,7 @@ class InventoryTest(TestCase):
 
 
     def test_inventory_exception(self):
-        inv = InventorySystem(stack_limit=3, max_slots=3)
+        inv = InventorySystem(stack_limit=3, max_slots=3, item_filter=FILTER_ACCEPT_ALL)
         foo = Item("foo")
 
         # test removing non existent item
@@ -48,7 +48,7 @@ class InventoryTest(TestCase):
         for foo_q in range(5):
             for bar_q in range(3):
 
-                inv = InventorySystem(stack_limit=3, max_slots=3)
+                inv = InventorySystem(stack_limit=3, max_slots=3, item_filter=FILTER_ACCEPT_ALL)
                 foo = Item("foo")
                 bar = Item("bar")
 

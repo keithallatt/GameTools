@@ -27,9 +27,9 @@ class Item:
         self.name = " ".join([n.capitalize() for n in name.split(" ")])
 
     def __str__(self):
-        flds = self.fields()
-        flds = list(filter(lambda x: x is not None, flds))
-        return " ".join(flds)
+        fields = self.fields()
+        fields = list(filter(lambda x: x is not None, fields))
+        return " ".join(fields)
 
     def __eq__(self, other):
         """ Equal items have the same name, may only differ by quantity """
@@ -164,11 +164,12 @@ class ItemFilter:
         return self.filter_cats[Any]
 
     def is_all_encompassing(self):
-        return self.filter_cats[None] and self.filter_cats[Any] and False not in list(self.filter_cats.values())
+        return self.filter_cats[None] and self.filter_cats[Any] and \
+               False not in list(self.filter_cats.values())
 
     @classmethod
     def generate_filters(cls, filter_list: List[List[Union[ItemCategory, None]]]):
-        all_cats = sum(filter_list, start = [])
+        all_cats = sum(filter_list, start=[])
         all_cats_set = set(all_cats)
         if len(all_cats) != len(all_cats_set):
             raise InventoryException(None, msg="Cannot generate from non-pairwise disjoint lists")
@@ -500,14 +501,14 @@ class Inventory:
 
         widths = [len(str(page).split("\n")[0]) for page in self.pages]
 
-        page_strs = [
+        page_str_s = [
             str(self.pages[i]).split("\n") + [
                 " " * widths[i] for _ in range(max_lines - len(str(self.pages[i]).split("\n")))
             ] for i in range(len(self.pages))
         ]
 
         return "\n".join([
-            " ".join([page_strs[page_num][line] for page_num in range(len(self.pages))])
+            " ".join([page_str_s[page_num][line] for page_num in range(len(self.pages))])
             for line in range(max_lines)
         ])
 
@@ -521,6 +522,7 @@ class Inventory:
             for i in range(len(inv_copy.pages)):
                 if inv_copy.pages[i].item_filter.accepts(it_cat):
                     inv_copy.pages[i] += it
+                    continue
         return inv_copy
 
     def __sub__(self, other: Union[List[Item], Item]):
@@ -534,6 +536,9 @@ class Inventory:
                 if inv_copy.pages[i].item_filter.accepts(it_cat):
                     inv_copy.pages[i] -= it
         return inv_copy
+
+
+FILTER_ACCEPT_ALL = ItemFilter({None: True, Any: True})
 
 
 if __name__ == "__main__":
@@ -558,7 +563,5 @@ if __name__ == "__main__":
     inv = Inventory(pages=inv_sys_s)
 
     inv += item_list_
-    inv -= item_list_
 
     print(inv)
-

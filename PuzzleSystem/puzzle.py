@@ -1,5 +1,5 @@
 from __future__ import annotations
-from colorama import Fore, Back, Style, init
+from colorama import Fore, Style, init
 from ansiwrap import *
 import random
 
@@ -72,7 +72,7 @@ class AnagramPuzzle(PuzzleSystem):
         ]
 
         self.wheels = [wheel +
-                       [chr(random.randint(ord('a'), ord('z'))) for i in range(wl - len(wheel))]
+                       [chr(random.randint(ord('a'), ord('z'))) for _ in range(wl - len(wheel))]
                        for wheel in self.wheels]
 
         while self.is_solved():
@@ -81,18 +81,17 @@ class AnagramPuzzle(PuzzleSystem):
                 random.shuffle(wheel)
                 self.wheels[i] = wheel
 
-
-
     def __str__(self):
         num_before_after = len(self.wheels[0]) // 2
         str_repr = ""
         for i in range(-num_before_after, len(self.wheels[0]) - num_before_after):
             if i == 0:
-                str_repr += Fore.MAGENTA + f"{Fore.RESET}|{Fore.MAGENTA}---" * len(self.wheels) + Style.RESET_ALL + "|\n"
-                str_repr += Fore.RED
-                str_repr += f"{Fore.RESET}| {Fore.RED}" + f"{Fore.RESET} | {Fore.RED}".join([w[i] for w in self.wheels]) + f"{Fore.RESET} |"
-                str_repr += Fore.RESET
-                str_repr += "\n" + Fore.MAGENTA + f"{Fore.RESET}|{Fore.MAGENTA}---" * len(self.wheels) + Style.RESET_ALL + "|"
+                str_repr += Fore.MAGENTA + f"{Fore.RESET}|{Fore.MAGENTA}---" * len(self.wheels)
+                str_repr += Style.RESET_ALL + "|\n" + Fore.RED + f"{Fore.RESET}| {Fore.RED}"
+                str_repr += f"{Fore.RESET} | {Fore.RED}".join([w[i] for w in self.wheels])
+                str_repr += f"{Fore.RESET} |" + Fore.RESET + "\n" + Fore.MAGENTA
+                str_repr += f"{Fore.RESET}|{Fore.MAGENTA}---" * len(self.wheels)
+                str_repr += Style.RESET_ALL + "|"
             else:
                 if i == -num_before_after or i == len(self.wheels[0]) - num_before_after - 1:
                     str_repr += Fore.WHITE
