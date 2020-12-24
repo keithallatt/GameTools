@@ -6,7 +6,7 @@ import json
 import copy
 import pprint
 import re
-from typing import Union
+from typing import Union, Dict, Any, List
 import warnings
 
 init()
@@ -26,21 +26,25 @@ class Item:
         self.name = " ".join([n.capitalize() for n in name.split(" ")])
 
     def __str__(self):
-        str_repr = self.name
-        if self.color is not None:
-            str_repr = self.color + str_repr + Style.RESET_ALL
-        elif self.category is not None:
-            str_repr = self.category.before_str() + str_repr + Style.RESET_ALL
-        str_repr += (Fore.RED if self.quantity == 0 else "") + " x" + str(self.quantity) + \
-                    (Style.RESET_ALL if self.quantity == 0 else "")
-        if self.unit_weight is not None:
-            str_repr += " " + str(self.unit_weight) + "g"
-        if self.price is not None:
-            str_repr += " $" + str(self.price)
-        return str_repr
+        flds = self.fields()
+        flds = list(filter(lambda x: x is not None, flds))
+        return " ".join(flds)
 
     def __eq__(self, other):
-        """ Equal items have the same name """
+        """ Equal items have the same name, may only differ by quantity """
+        if self.color != other.color:
+            return False
+        if self.category is None and other.category is not None:
+            return False
+        if self.category is not None and other.category is None:
+            return False
+        # either both none, or both categories. if both none, then this condition is false anyways
+        if self.category != other.category:
+            return False
+        if self.price != other.price:
+            return False
+        if self.unit_weight != other.unit_weight:
+            return False
         return self.name == other.name
 
     def __mul__(self, other: int):
@@ -63,15 +67,26 @@ class Item:
             return []
 
         # assumes all are formatted the same
-        item_strings = [str(it).split(" ") for it in item_list]
+        item_strings = [list(filter(lambda x: len(x) > 0, it.fields())) for it in item_list]
+
         # get length of each field in list.
         feature_lens = [max([ansilen(item_strings[n][i])+1 for n in range(len(item_strings))])
                         for i in range(len(item_strings[0]))]
         # generate padded fields and join together.
-        item_strings = ["".join([it_str[i] + " "*(feature_lens[i] - ansilen(it_str[i]))
+        item_strings = [" ".join([it_str[i] + " "*(feature_lens[i] - ansilen(it_str[i]))
                         for i in range(len(feature_lens))]) for it_str in item_strings]
 
         return item_strings
+
+    def fields(self):
+        return [
+            (self.color if self.color is not None else self.category.before_str()
+             if self.category is not None else "") + self.name + Style.RESET_ALL,
+            (Fore.RED if self.quantity == 0 else "") + "x" + str(self.quantity) +
+            (Style.RESET_ALL if self.quantity == 0 else ""),
+            (str(self.unit_weight) + "g" if self.unit_weight is not None else ""),
+            ("$" + str(self.price) if self.price is not None else "")
+        ]
 
     def copy(self, **kwargs):
         """
@@ -95,14 +110,86 @@ class ItemCategory:
     def before_str(self):
         return self.fg + self.bg
 
+    def __str__(self):
+        return self.name + " Category"
+
+    def __eq__(self, other):
+        """ Equality of all fields. """
+        if other is None:
+            return False
+        return self.name == other.name and self.fg == other.fg and self.bg == other.bg
+
+    def __hash__(self):
+        return hash(str(self.name + self.fg + self.bg))
+
 
 class ItemFilter:
-    pass
+    def __init__(self, filter_cats: Dict[Union[ItemCategory, None, Any], bool] = None):
+        """ None key in filter_cats corresponds to default behaviour. """
+        self.filter_cats = {
+            None: False, Any: False
+        }
+        if filter_cats is not None:
+            self.filter_cats.update(filter_cats)
+
+    def accept(self, item: Item):
+        return self.filter_cats.get(item.category,
+                                    self.filter_cats[None if item.category is None else Any])
+
+    def accepts(self, item_category: ItemCategory):
+        return self.filter_cats.get(item_category,
+                                    self.filter_cats[None if item_category is None else Any])
+
+    def get_categories(self):
+        cats = []
+        for k, v in self.filter_cats.items():
+            if k is not Any:
+                if v:
+                    cats.append(k)
+        return cats
+
+    def get_restricted(self):
+        cats = []
+        for k, v in self.filter_cats.items():
+            if k is not Any:
+                if not v:
+                    cats.append(k)
+        return cats
+
+    def is_generalized(self):
+        return self.filter_cats[None]
+
+    def is_categorized(self):
+        return self.filter_cats[Any]
+
+    def is_all_encompassing(self):
+        return self.filter_cats[None] and self.filter_cats[Any] and False not in list(self.filter_cats.values())
+
+    @classmethod
+    def generate_filters(cls, filter_list: List[List[Union[ItemCategory, None]]]):
+        all_cats = sum(filter_list, start = [])
+        all_cats_set = set(all_cats)
+        if len(all_cats) != len(all_cats_set):
+            raise InventoryException(None,
+                                     msg="Cannot generate filters from non-pairwise disjoint lists")
+
+        last_filter = {Any: True, None: True}
+
+        for filter_cat in filter_list:
+            last_filter.update({cat: False for cat in filter_cat})
+
+        defined_filters = [{cat: True for cat in filter_cat} for filter_cat in filter_list]
+
+        return defined_filters + [last_filter]
+
+
+    def __str__(self):
+        return str({str(k): v for k, v in self.filter_cats.items()})
 
 
 class InventoryException(Exception):
     """Basic exception for errors raised by the inventory system"""
-    def __init__(self, inventory: Union[InventorySystem, Item], msg=None):
+    def __init__(self, inventory: Union[InventorySystem, Item, None], msg=None):
         if msg is None:
             msg = "An error occurred with Inventory:\n%s" % inventory.pprint_inv()
             super(InventoryException, self).__init__(msg)
@@ -148,6 +235,9 @@ class InventorySystem:
         self.weight_limit = kwargs.get("weight_limit", 0)
         self.kwargs.update({"weight_limit": self.weight_limit})
 
+        self.item_filter = kwargs.get("item_filter", ItemFilter())
+        self.kwargs.update({"item_filter": self.item_filter})
+
         if self.weight_based and self.weight_limit <= 0:
             warnings.warn("Weight based system with non-positive weight limit")
         elif self.weight_based:
@@ -158,7 +248,12 @@ class InventorySystem:
                 warnings.warn("Weight based system with maximum slot capacity limit")
 
     def _add_item(self, it: Item, new_slot=False):
+        """ Add an item / a number of items to the inventory.
+            Raises an InventoryException if item addition fails. """
         if it is None or it.name.strip() == "":
+            return self
+
+        if not self.item_filter.accept(it):
             return self
 
         if self.weight_based and self.weight_limit > 0:
@@ -212,6 +307,8 @@ class InventorySystem:
         return self
 
     def _remove_item(self, it: Item):
+        """ Remove an item / a number of items from the inventory.
+            Raises an InventoryException if item removal fails. """
         if it not in self._contents:
             raise InventoryException(self, msg="Cannot remove non-existent item")
         it_lst = self._get_items(self._contents, it, full_stacks=True)
@@ -242,14 +339,13 @@ class InventorySystem:
                 (self.stack_limit is None or x.quantity < self.stack_limit
                  or (x.quantity == self.stack_limit and full_stacks))]
 
-    @staticmethod
-    def pprint_inv():
+    def pprint_inv(self):
         """ Use pretty print module to print inventory structure """
-        return pprint.pformat(json.loads(inv.serialize_json_pickle()))
+        return pprint.pformat(json.loads(self.serialize_json_pickle()))
 
     def serialize_json_pickle(self):
         """ Serialize inventory into json """
-        return jsonpickle.encode(self)
+        return jsonpickle.encode(self, make_refs=False)
 
     def set_stack_limit(self, stack_limit):
         """ Set new stack limit. Throws exception if new stack limit * max slots < current items
@@ -306,40 +402,125 @@ class InventorySystem:
         self._contents.sort(key=lambda item: item.name if item.category is None
                             else item.category.name)
 
+        inv_name = ""
+        if self.item_filter is not None:
+            # get all categories
+            categories = [c.name
+                          for c, v in self.item_filter.filter_cats.items()
+                          if v and c is not None and c is not Any]
+
+            if self.item_filter.filter_cats[None]:
+                categories = ["General"]
+            if self.item_filter.filter_cats[Any]:
+                categories = ["Categorized"]
+            if self.item_filter.filter_cats[None] and self.item_filter.filter_cats[Any]:
+                categories = ["All"]
+
+            inv_name = "| " + " & ".join(categories)
+
         item_lst_str = Item.align(self._contents)
 
-        l_end = "+-" + "-" * max(
-            [0] + [ansilen(i) for i in item_lst_str])
+        text_ = "Empty Inventory"
+
+        width = max(
+            [len(inv_name), (len(text_)+1 if len(self._contents) == 0 else 0)] +
+            [ansilen(i) for i in item_lst_str])
+
+        l_end = "+-" + "-" * width + "+"
         presentation = "| " + "\n| ".join(item_lst_str)
         if presentation == "| ":
-            text_ = "Empty Inventory"
             presentation += Fore.MAGENTA + text_ + Style.RESET_ALL
-            l_end = "+-" + "-" * len(text_)
 
         if self.remove_ansi:
             # ANSI code regex
             ansi_escape = re.compile(r'\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])')
             presentation = ansi_escape.sub('', presentation)
 
-        return l_end + "\n" + presentation + "\n" + l_end
+        return "\n".join([l_end,
+                          inv_name + " " * (len(l_end) - ansilen(inv_name) - 1) + "|",
+                          l_end,
+                          "\n".join([p + " " * (len(l_end) - ansilen(p) - 1) + "|"
+                                     for p in presentation.split("\n")]), l_end])
+
+
+class Inventory:
+    """ Collection of Inventory Systems. """
+    def __init__(self, **kwargs):
+        self.pages = list(kwargs.get("pages", []))
+        self.all_pages_in_str = True
+        self.page_display = 0
+
+        all_cats = sum([
+            inv_sys.item_filter.get_categories() for inv_sys in self.pages
+        ], start=[])
+
+        all_cats_set = set(all_cats)
+
+        if len(all_cats_set) != len(all_cats):
+            # at least 2 pages share a category they accept
+            warnings.warn("Multiple pages accept similar items.")
+
+        if len([inv_sys for inv_sys in self.pages if inv_sys.item_filter.is_generalized()]) > 1:
+            warnings.warn("Multiple pages are generalized.")
+
+        if len([inv_sys for inv_sys in self.pages if inv_sys.item_filter.is_categorized()]) > 1:
+            warnings.warn("Multiple pages are categorized.")
+
+        if len([inv_sys for inv_sys in self.pages
+                if inv_sys.item_filter.is_all_encompassing()]) >= 1 and len(self.pages) > 1:
+            warnings.warn("Multiple pages defined with an all encompassing page.")
+
+        for inv_sys in [inv_sys for inv_sys in self.pages if inv_sys.item_filter.is_categorized()]:
+            restrictions = inv_sys.item_filter.get_restricted()
+            inner_break = False
+            for cat in all_cats_set:
+                if cat not in restrictions:
+                    warnings.warn(f"Inventory System does not restrict other systems' acceptances.")
+                    inner_break = True
+                    break
+            if inner_break:
+                break
+
+    def __str__(self):
+        if not self.all_pages_in_str:
+            return str(self.pages[self.page_display])
+
+        max_lines = max([len(str(page).split("\n")) for page in self.pages], default=0)
+
+        widths = [len(str(page).split("\n")[0]) for page in self.pages]
+
+        page_strs = [
+            str(self.pages[i]).split("\n") + [
+                " " * widths[i] for _ in range(max_lines - len(str(self.pages[i]).split("\n")))
+            ] for i in range(len(self.pages))
+        ]
+
+        return "\n".join([
+            " ".join([page_strs[page_num][line] for page_num in range(len(self.pages))])
+            for line in range(max_lines)
+        ])
 
 
 if __name__ == "__main__":
-    inv = InventorySystem()
-
     food_cat = ItemCategory("Food", fg=Fore.GREEN)
-    materials_cat = ItemCategory("Materials", fg=Fore.WHITE)
+    materials_cat = ItemCategory("Materials", fg=Fore.LIGHTBLUE_EX)
+    key_items_cat = ItemCategory("Key Items", fg=Fore.LIGHTMAGENTA_EX)
+
+    filters = ItemFilter.generate_filters([[food_cat, materials_cat], [key_items_cat, None]])
+
+    for f in filters:
+        print({str(k): v for k, v in f.items()})
 
     apple = Item("Apple", category=food_cat)
     orange = Item("Orange", category=food_cat)
     grape = Item("Grape", category=food_cat)
     wood = Item("Wood", category=materials_cat)
     stone = Item("Stone", category=materials_cat)
+    marble = Item("Marble", category=materials_cat)
     dirt = Item("Dirt")
+    key = Item("Shiny Key", category=key_items_cat)
 
-    inv += [apple, orange, grape, wood, stone, dirt]
+    item_list_ = [apple, orange, grape, wood, stone, dirt, marble, key]
 
-    print(inv.pprint_inv())
+    inv = Inventory(pages=())
     print(inv)
-
-
