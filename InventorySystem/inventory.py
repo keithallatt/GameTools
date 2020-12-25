@@ -9,6 +9,7 @@ import re
 from typing import Union, Dict, Any, List
 import warnings
 import random
+from currency import Wallet, CurrencySystem
 
 init()
 
@@ -86,6 +87,7 @@ class Item:
         return item_strings
 
     def fields(self):
+        remove_whitespace = re.compile(r'\s+')
         return [
             (self.color if self.color is not None else self.category.before_str()
              if self.category is not None else "") + self.name + Style.RESET_ALL,
@@ -93,7 +95,7 @@ class Item:
             ("x" + str(self.quantity) if self.quantity != 1 else "") +
             (Style.RESET_ALL if self.quantity == 0 else ""),
             (str(self.unit_weight) + "g" if self.unit_weight is not None else ""),
-            ("$" + str(self.price) if self.price is not None else "")
+            (remove_whitespace.sub('', str(self.price)) if self.price is not None else "")
         ]
 
     def copy(self, **kwargs):
@@ -578,7 +580,7 @@ if __name__ == "__main__":
     travelers_bow = Item("Traveler's Bow", category=bows_cat)
     knights_bow = Item("Knight's Bow", category=bows_cat)
 
-    arrow = Item("Arrow", category=arrows_cat)
+    arrow = Item("Arrow", category=arrows_cat, price=1)
     fire_arrow = Item("Fire Arrow", category=arrows_cat)
     ice_arrow = Item("Ice Arrow", category=arrows_cat)
     shock_arrow = Item("Shock Arrow", category=arrows_cat)
