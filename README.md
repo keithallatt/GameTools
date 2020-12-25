@@ -3,6 +3,9 @@
 This repository is designed to be a framework for text based game development, 
 incorporating inventory systems, conversation systems (with NPCs) and the like.
 
+A very useful resource in this project's development has been 
+<a href="http://howtomakeanrpg.com">this website</a>.
+
 ## InventorySystem
 
 ```

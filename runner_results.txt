@@ -8,7 +8,7 @@ test_map_copy (MapSystem.test_map.MapTest) ... ok
 test_map_exception (MapSystem.test_map.MapTest) ... ok
 
 ----------------------------------------------------------------------
-Ran 5 tests in 0.127s
+Ran 5 tests in 0.099s
 
 OK
 
@@ -32,40 +32,40 @@ Counting GameTools/PlayerSystem
      ADDED |     TOTAL | FILE                
 -----------|-----------|--------------------
          0 |       206 | PlayerSystem/__init__.py
-        34 |       240 | PlayerSystem/player.py
+       199 |       405 | PlayerSystem/player.py
 --------------------------------------------
 --------------------------------------------
 Counting GameTools/NPCSystem
 --------------------------------------------
      ADDED |     TOTAL | FILE                
 -----------|-----------|--------------------
-        73 |       313 | NPCSystem/npc_types.py
-         0 |       313 | NPCSystem/__init__.py
-         9 |       322 | NPCSystem/test_npc.py
-        40 |       362 | NPCSystem/npc_conversation.py
+        73 |       478 | NPCSystem/npc_types.py
+         0 |       478 | NPCSystem/__init__.py
+         9 |       487 | NPCSystem/test_npc.py
+        40 |       527 | NPCSystem/npc_conversation.py
 --------------------------------------------
 --------------------------------------------
 Counting GameTools/CombatSystem
 --------------------------------------------
      ADDED |     TOTAL | FILE                
 -----------|-----------|--------------------
-         0 |       362 | CombatSystem/__init__.py
+         0 |       527 | CombatSystem/__init__.py
 --------------------------------------------
 --------------------------------------------
 Counting GameTools/InventorySystem
 --------------------------------------------
      ADDED |     TOTAL | FILE                
 -----------|-----------|--------------------
-        62 |       424 | InventorySystem/test_inventory.py
-         0 |       424 | InventorySystem/__init__.py
-       567 |       991 | InventorySystem/inventory.py
+        62 |       589 | InventorySystem/test_inventory.py
+         0 |       589 | InventorySystem/__init__.py
+       567 |      1156 | InventorySystem/inventory.py
 --------------------------------------------
 --------------------------------------------
 Counting GameTools/PuzzleSystem
 --------------------------------------------
      ADDED |     TOTAL | FILE                
 -----------|-----------|--------------------
-       148 |      1139 | PuzzleSystem/puzzle.py
-         0 |      1139 | PuzzleSystem/__init__.py
+       148 |      1304 | PuzzleSystem/puzzle.py
+         0 |      1304 | PuzzleSystem/__init__.py
 --------------------------------------------
-Total lines of code: 1139
+Total lines of code: 1304
