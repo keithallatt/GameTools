@@ -104,9 +104,6 @@ print("-"*70)
 print(Fore.RESET + test_result.replace(" ... ok", f" ... {Fore.GREEN}ok{Fore.RESET}") + Fore.RESET)
 print("Tests run: %s\nErrors: %s\nFailures: %s\n\n" % (run, errors, failures))
 
-if int(failures) > 0 or int(errors) > 0:
-    exit(0)
-
 statistics()
 
 sys.stdout = sys.__stdout__

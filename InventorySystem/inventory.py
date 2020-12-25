@@ -26,8 +26,10 @@ class Item:
         self.category = kwargs.get("category", None)
         self.price = kwargs.get("price", None)
         self.unit_weight = kwargs.get("unit_weight", None)
+
         if self.unit_weight is not None and self.unit_weight <= 0:
             raise InventoryException(self, msg="Item with non-positive weight defined.")
+
         self.name = " ".join([n.capitalize() for n in name.split(" ")])
 
     def __str__(self):
@@ -37,14 +39,11 @@ class Item:
 
     def __eq__(self, other):
         """ Equal items have the same name, may only differ by quantity """
-        if self.color != other.color:
+        if other is None:
             return False
-        if self.category is None and other.category is not None:
-            return False
-        if self.category is not None and other.category is None:
-            return False
-        # either both none, or both categories. if both none, then this condition is false anyways
         if self.category != other.category:
+            return False
+        if self.color != other.color:
             return False
         if self.price != other.price:
             return False
@@ -72,14 +71,17 @@ class Item:
             return []
 
         # assumes all are formatted the same
-        item_strings = [list(filter(lambda x: len(x) > 0, it.fields())) for it in item_list]
+        item_strings = [[field.strip() + ("  " if ansilen(field) > 0 else "")
+                         for field in it.fields()] for it in item_list]
 
         # get length of each field in list.
-        feature_lens = [max([ansilen(item_strings[n][i])+1 for n in range(len(item_strings))])
-                        for i in range(len(item_strings[0]))]
+        feature_lens = [max([ansilen(item_strings[n][i]) for n in range(len(item_strings))])
+                        for i in range(max([len(item_strings[n])
+                                            for n in range(len(item_strings))]))]
         # generate padded fields and join together.
-        item_strings = [" ".join([it_str[i] + " "*(feature_lens[i] - ansilen(it_str[i]))
+        item_strings = ["".join([it_str[i] + " "*(feature_lens[i] - ansilen(it_str[i]))
                         for i in range(len(feature_lens))]) for it_str in item_strings]
+
 
         return item_strings
 
@@ -88,7 +90,7 @@ class Item:
             (self.color if self.color is not None else self.category.before_str()
              if self.category is not None else "") + self.name + Style.RESET_ALL,
             (Fore.RED if self.quantity == 0 else "") +
-            ("x" + str(self.quantity) if self.quantity != 1 else " ") +
+            ("x" + str(self.quantity) if self.quantity != 1 else "") +
             (Style.RESET_ALL if self.quantity == 0 else ""),
             (str(self.unit_weight) + "g" if self.unit_weight is not None else ""),
             ("$" + str(self.price) if self.price is not None else "")
@@ -583,7 +585,6 @@ if __name__ == "__main__":
     inv = InventorySystem(item_filter=ItemFilter({bows_cat: True, arrows_cat: True}))
 
     inv += 2 * travelers_bow
-    inv += 3 * knights_bow
 
     inv += 99*arrow
     inv += 99*fire_arrow
