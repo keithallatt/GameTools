@@ -18,6 +18,10 @@ class Item:
     def __init__(self, name: str, **kwargs):
         self.kwargs = kwargs
         self.quantity = kwargs.get("quantity", 1)
+
+        self.stack_limit = kwargs.get("stack_limit", None)
+        self.max_slots = kwargs.get("max_slots", None)
+
         self.color = kwargs.get("color", None)
         self.category = kwargs.get("category", None)
         self.price = kwargs.get("price", None)
@@ -83,7 +87,8 @@ class Item:
         return [
             (self.color if self.color is not None else self.category.before_str()
              if self.category is not None else "") + self.name + Style.RESET_ALL,
-            (Fore.RED if self.quantity == 0 else "") + "x" + str(self.quantity) +
+            (Fore.RED if self.quantity == 0 else "") +
+            ("x" + str(self.quantity) if self.quantity != 1 else " ") +
             (Style.RESET_ALL if self.quantity == 0 else ""),
             (str(self.unit_weight) + "g" if self.unit_weight is not None else ""),
             ("$" + str(self.price) if self.price is not None else "")
@@ -103,10 +108,13 @@ class Item:
 class ItemCategory:
     """ Category for items. Each item can belong to multiple categories, but it is
         recommended that only one be used. """
-    def __init__(self, name: str, fg: Fore = Fore.RESET, bg: Back = Back.RESET):
+    def __init__(self, name: str, fg: Fore = Fore.RESET, bg: Back = Back.RESET, **kwargs):
         self.name = name
         self.fg = fg
         self.bg = bg
+
+        self.stack_limit = kwargs.get("stack_limit", None)
+        self.max_slots = kwargs.get("max_slots", None)
 
     def before_str(self):
         return self.fg + self.bg
@@ -275,6 +283,12 @@ class InventorySystem:
                 # if need new stack
                 self._contents.append(it)
         else:
+            stack_limit = it.stack_limit
+            if stack_limit is None and it.category is not None:
+                stack_limit = it.category.stack_limit
+            if stack_limit is None:
+                stack_limit = self.stack_limit
+
             # if it is slot based / stack based
             if it in self._contents and not new_slot:
                 in_lst = self._get_items(self._contents, it)
@@ -283,8 +297,9 @@ class InventorySystem:
                 while len(in_lst) > 0 and to_add > 0:
                     next_it, in_lst = in_lst[0], in_lst[1:]
                     can_add = to_add
-                    if self.stack_limit is not None:
-                        can_add = min(to_add, self.stack_limit - next_it.quantity)
+
+                    if stack_limit is not None:
+                        can_add = min(to_add, stack_limit - next_it.quantity)
                     to_add -= can_add
                     next_it.quantity += can_add
 
@@ -293,12 +308,23 @@ class InventorySystem:
                     # add new slot
                     self._add_item(it.copy(quantity=to_add), new_slot=True)
             else:
-                if self.max_slots is None or len(self._contents) < self.max_slots:
+                # max slot conditions
+                msc_inv_sys = self.max_slots is None or \
+                                              len(self._contents) < self.max_slots
+                msc_cat = it.category is None or it.category.max_slots is None or \
+                    len(list(filter(lambda x: x.category == it.category,
+                                    self._contents))) < it.category.max_slots
+                msc_item = it.max_slots is None or \
+                    len(list(filter(lambda x: x.name == it.name, self._contents))) < it.max_slots
+
+                if msc_inv_sys and msc_cat and msc_item:
+
                     # adding new stacks.
                     to_add = it.quantity
-                    if self.stack_limit is not None and to_add > self.stack_limit:
-                        self._contents.append(it.copy(quantity=self.stack_limit))
-                        self._add_item(it.copy(quantity=to_add - self.stack_limit))
+
+                    if stack_limit is not None and to_add > stack_limit:
+                        self._contents.append(it.copy(quantity=stack_limit))
+                        self._add_item(it.copy(quantity=to_add - stack_limit))
                     else:
                         self._contents.append(it.copy())
                 else:
@@ -542,26 +568,26 @@ FILTER_ACCEPT_ALL = ItemFilter({None: True, Any: True})
 
 
 if __name__ == "__main__":
-    food_cat = ItemCategory("Food", fg=Fore.GREEN)
-    materials_cat = ItemCategory("Materials", fg=Fore.LIGHTBLUE_EX)
-    key_items_cat = ItemCategory("Key Items", fg=Fore.LIGHTMAGENTA_EX)
+    bows_cat = ItemCategory("Bows", fg=Fore.RED, stack_limit=1)
+    arrows_cat = ItemCategory("Arrows", fg=Fore.BLUE)
 
-    filters = ItemFilter.generate_filters([[food_cat, materials_cat], [key_items_cat]])
-    inv_sys_s = [InventorySystem(item_filter=f) for f in filters]
+    wooden_bow = Item("Wooden Bow", category=bows_cat)
+    travelers_bow = Item("Traveler's Bow", category=bows_cat)
+    knights_bow = Item("Knight's Bow", category=bows_cat)
 
-    apple = Item("Apple", category=food_cat)
-    orange = Item("Orange", category=food_cat)
-    grape = Item("Grape", category=food_cat)
-    wood = Item("Wood", category=materials_cat)
-    stone = Item("Stone", category=materials_cat)
-    marble = Item("Marble", category=materials_cat)
-    dirt = Item("Dirt")
-    key = Item("Shiny Key", category=key_items_cat)
+    arrow = Item("Arrow", category=arrows_cat, max_slots=1)
+    fire_arrow = Item("Fire Arrow", category=arrows_cat)
+    ice_arrow = Item("Ice Arrow", category=arrows_cat)
+    shock_arrow = Item("Shock Arrow", category=arrows_cat)
 
-    item_list_ = [apple, orange, grape, wood, stone, dirt, marble, key]
+    inv = InventorySystem(item_filter=ItemFilter({bows_cat: True, arrows_cat: True}))
 
-    inv = Inventory(pages=inv_sys_s)
+    inv += 2 * travelers_bow
+    inv += 3 * knights_bow
 
-    inv += item_list_
+    inv += 99*arrow
+    inv += 99*fire_arrow
+    inv += 99*ice_arrow
+    inv += 99*shock_arrow
 
     print(inv)
