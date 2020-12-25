@@ -8,7 +8,7 @@ test_map_copy (MapSystem.test_map.MapTest) ... ok
 test_map_exception (MapSystem.test_map.MapTest) ... ok
 
 ----------------------------------------------------------------------
-Ran 5 tests in 0.132s
+Ran 5 tests in 0.128s
 
 OK
 
@@ -58,14 +58,14 @@ Counting GameTools/InventorySystem
 -----------|-----------|--------------------
         62 |       589 | InventorySystem/test_inventory.py
          0 |       589 | InventorySystem/__init__.py
-       593 |      1182 | InventorySystem/inventory.py
+       594 |      1183 | InventorySystem/inventory.py
 --------------------------------------------
 --------------------------------------------
 Counting GameTools/PuzzleSystem
 --------------------------------------------
      ADDED |     TOTAL | FILE                
 -----------|-----------|--------------------
-       148 |      1330 | PuzzleSystem/puzzle.py
-         0 |      1330 | PuzzleSystem/__init__.py
+       146 |      1329 | PuzzleSystem/puzzle.py
+         0 |      1329 | PuzzleSystem/__init__.py
 --------------------------------------------
-Total lines of code: 1330
+Total lines of code: 1329

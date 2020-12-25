@@ -475,7 +475,9 @@ class InventorySystem:
 class Inventory:
     """ Collection of Inventory Systems. """
     def __init__(self, **kwargs):
-        self.pages = list(kwargs.get("pages", []))
+        self.pages = list(kwargs.get("pages", [
+            InventorySystem(item_filter=FILTER_ACCEPT_ALL)
+        ]))
         self.all_pages_in_str = True
         self.page_display = 0
 
@@ -568,7 +570,6 @@ class Inventory:
 
 FILTER_ACCEPT_ALL = ItemFilter({None: True, Any: True})
 
-
 if __name__ == "__main__":
     bows_cat = ItemCategory("Bows", fg=Fore.RED, stack_limit=1)
     arrows_cat = ItemCategory("Arrows", fg=Fore.BLUE)
@@ -577,7 +578,7 @@ if __name__ == "__main__":
     travelers_bow = Item("Traveler's Bow", category=bows_cat)
     knights_bow = Item("Knight's Bow", category=bows_cat)
 
-    arrow = Item("Arrow", category=arrows_cat, max_slots=1)
+    arrow = Item("Arrow", category=arrows_cat)
     fire_arrow = Item("Fire Arrow", category=arrows_cat)
     ice_arrow = Item("Ice Arrow", category=arrows_cat)
     shock_arrow = Item("Shock Arrow", category=arrows_cat)
@@ -585,10 +586,11 @@ if __name__ == "__main__":
     inv = InventorySystem(item_filter=ItemFilter({bows_cat: True, arrows_cat: True}))
 
     inv += 2 * travelers_bow
+    inv += 3 * knights_bow
 
-    inv += 99*arrow
-    inv += 99*fire_arrow
-    inv += 99*ice_arrow
-    inv += 99*shock_arrow
+    inv += 99 * arrow
+    inv += 99 * fire_arrow
+    inv += 99 * ice_arrow
+    inv += 99 * shock_arrow
 
     print(inv)

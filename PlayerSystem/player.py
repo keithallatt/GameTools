@@ -1,15 +1,18 @@
-from typing import Set
+from __future__ import annotations
+from InventorySystem.inventory import Inventory, Item
 from colorama import Back, Fore, Style
 import numpy as np
 import math
 from ansiwrap import *
 from typing import Type
+from collections import OrderedDict
 
 
 class PointSystem:
     def __init__(self, name: str):
         self.point_system_name = name
         self.level = 0
+        self.exp_per_level_coefficients = np.array([1.])
 
     def limit_for_level(self, level: int):
         pass
@@ -44,7 +47,7 @@ class ExpSys(PointSystem):
         coefficients = self.exp_per_level_coefficients
         level_arr = np.repeat(level, coefficients.shape[0])
         exponents = np.arange(0, coefficients.shape[0])
-        return round(sum(coefficients * (level_arr ** exponents)))
+        return int(np.round(np.sum(coefficients * (level_arr ** exponents))))
 
     def __str__(self):
         return f"{self.exp} / {self.max_exp} EXP"
@@ -87,7 +90,7 @@ class HealthSys(PointSystem):
         coefficients = self.hp_per_level_coefficients
         level_arr = np.repeat(level, coefficients.shape[0])
         exponents = np.arange(0, coefficients.shape[0])
-        return round(sum(coefficients * (level_arr ** exponents)))
+        return int(np.round(np.sum(coefficients * (level_arr ** exponents))))
 
     def __str__(self):
         return f"{self.hp} / {self.max_hp} HP"
@@ -119,6 +122,100 @@ class HealthSys(PointSystem):
             return self.__str__()
 
 
+class Wallet:
+    def __init__(self, curr_sys: CurrencySystem):
+        self.curr_sys = curr_sys
+        self.wallet = {denomination: 0 for denomination in curr_sys.denominations}
+
+    def __str__(self):
+        max_len = max([len(denomination) for denomination in self.curr_sys.denominations],
+                      default=0) + 1
+        return "\n".join(
+            [
+                denomination + ":" + " " * (max_len - len(denomination)) +
+                str(self.wallet[denomination]) for denomination in self.curr_sys.denominations
+            ]
+        )
+
+    def add_currency(self, denomination, amount):
+        """ Adds amount of denomination to wallet, returns True on successful addition,
+            False on unsuccessful addition. """
+        try:
+            self.wallet[denomination] += amount
+            return True
+        except KeyError:
+            return False
+
+class CurrencySystem:
+    """ Represents a Currency system, like Gold, Silver and Copper pieces,
+        where 1 gold = 7 silver, 1 silver = 13 copper etc. """
+    def __init__(self, relative_denoms: OrderedDict[str, int]):
+        # requires that relative_denoms is of the form
+        # {
+        #   name1: base_value,
+        #   name2: int(convert from name1 to name2)
+        #   name3: int(convert frmo name2 to name3)
+        # }
+
+        # therefore for the example above, we have
+        # {
+        #   "Gold": 1,
+        #   "Silver": 7,
+        #   "Copper": 13
+        # }
+
+        self.denominations = list(relative_denoms.keys())
+        self.relative_dens = relative_denoms
+
+    def convert(self, currency1: tuple[str, int], denomination2: str, whole_number=False):
+        denomination1, amount = currency1
+        ind1 = list(self.relative_dens.keys()).index(denomination1)
+        ind2 = list(self.relative_dens.keys()).index(denomination2)
+
+        if ind1 == ind2:
+            return amount
+
+        while ind1 < ind2:
+            ind1 += 1
+            amount *= self.relative_dens[self.denominations[ind1]]
+
+        while ind1 > ind2:
+            amount /= self.relative_dens[self.denominations[ind1]]
+            ind1 -= 1
+
+        if whole_number:
+            return math.floor(amount)
+        return amount
+
+    @staticmethod
+    def unstack(wallet: Wallet):
+        self = wallet.curr_sys
+
+        lowest_denomination = self.denominations[-1]
+
+        amount = 0
+        for denomination in self.denominations:
+            amount += self.convert((denomination, wallet.wallet[denomination]), lowest_denomination)
+
+        return amount
+
+    @staticmethod
+    def auto_stack(wallet: Wallet):
+        self = wallet.curr_sys
+        lowest_denomination = self.denominations[-1]
+        total_amount = CurrencySystem.unstack(wallet)
+
+        new_wallet = Wallet(curr_sys=self)
+
+        for denomination in self.denominations:
+            amount = self.convert((lowest_denomination, total_amount -
+                                   CurrencySystem.unstack(new_wallet)),
+                                  denomination, whole_number=True)
+            new_wallet.add_currency(denomination, amount)
+
+        return new_wallet
+
+
 class PlayerException(Exception):
     def __init__(self, msg: str = None):
         super().__init__(msg)
@@ -130,7 +227,7 @@ class PlayerSystem:
         A lot of inspiration came from
         http://howtomakeanrpg.com/a/how-to-make-an-rpg-levels.html
     """
-    def __init__(self, level: int = 1, point_systems: list[PointSystem] = None):
+    def __init__(self, level: int = 1, point_systems: list[PointSystem] = None, inventory: Inventory = None):
         self.point_systems = point_systems
         experience_systems = [
                p_sys for p_sys in point_systems if type(p_sys) is ExpSys
@@ -151,6 +248,11 @@ class PlayerSystem:
         for ps in self.point_systems:
             ps.set_according_to_level(level)
 
+        if inventory is None:
+            self.inventory = Inventory()
+        else:
+            self.inventory = inventory
+
     def __str__(self):
         level = None
         if self.exp_sys is not None:
@@ -166,11 +268,14 @@ class PlayerSystem:
         str_repr = "\n".join(["-"*max_len, str_repr.strip(), "-"*max_len])
 
         if level is not None:
-            str_repr = "-"*max_len + "\n|   Level "+str(level)+ "\n" + str_repr
+            str_repr = "-"*max_len + "\n|\tLevel "+str(level)+ "\n" + str_repr
+
+        if self.inventory is not None:
+            str_repr += "\n\tInventory:\n" + str(self.inventory)
 
         return str_repr
 
-    def gain_points(self, points: int, system_type: Type):
+    def _gain_points(self, points: int, system_type: Type):
         if not issubclass(system_type, PointSystem):
             raise PlayerException("Method called with system type not inherited from PointSystem")
 
@@ -186,14 +291,26 @@ class PlayerSystem:
         else:
             raise PlayerException("Gain Points called with system type not included in player")
 
+    def _add_to_inventory(self, item: Item = None, payment: int = None):
+        pass
+
+    def _remove_from_inventory(self, item: Item = None, payment: int = None):
+        pass
+
 
 if __name__ == "__main__":
-    player_sys = PlayerSystem(level=1,
-                              point_systems=[
-                                  HealthSys(), ExpSys()
-                              ])
+    currency = CurrencySystem(relative_denoms=OrderedDict({
+        "Gold": 1,
+        "Silver": 7,
+        "Copper": 13
+    }))
 
-    player_sys.gain_points(-1, HealthSys)
-    player_sys.gain_points(100, ExpSys)
+    coin_purse = Wallet(currency)
 
-    print(player_sys)
+    coin_purse.add_currency("Gold", 10)
+    coin_purse.add_currency("Silver", 10)
+    coin_purse.add_currency("Copper", 10)
+
+    coin_purse = CurrencySystem.auto_stack(coin_purse)
+
+    print(coin_purse)
