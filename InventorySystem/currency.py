@@ -1,10 +1,22 @@
 from __future__ import annotations
 from collections import OrderedDict
+from typing import Union
 import math
+
+
+class CurrencyException(Exception):
+    def __init__(self, cause: Union[Wallet, CurrencySystem] = None, msg: str = None):
+        if msg is None:
+            msg = "An error occurred with Currency System:\n"
+            super(CurrencyException, self).__init__(msg)
+        self.msg = msg
+        self.cause = cause
 
 
 class Wallet:
     def __init__(self, curr_sys: CurrencySystem = None, amount: int = 0):
+        if amount < 0:
+            raise CurrencyException(msg="Cannot have indebted wallet.")
         if curr_sys is None:
             curr_sys = CurrencySystem()
         self.wallet = {denomination: 0 for denomination in curr_sys.denominations}
@@ -59,11 +71,11 @@ class Wallet:
 
         return amount
 
-    def __add__(self, other):
-        return
+    def __add__(self, other: Wallet):
+        return Wallet(curr_sys=self.curr_sys, amount=(self.unstack() + other.unstack()))
 
-    def __sub__(self, other):
-        return
+    def __sub__(self, other: Wallet):
+        return Wallet(curr_sys=self.curr_sys, amount=(self.unstack() - other.unstack()))
 
     def __gt__(self, other):
         return self.unstack().__gt__(other.unstack())
@@ -130,12 +142,11 @@ if __name__ == "__main__":
         "Silver": 10
     }))
 
-    w1 = Wallet(curr_sys=gold_silver, amount=100)
-    w2 = Wallet(curr_sys=gold_silver)
-
+    w1 = Wallet(curr_sys=gold_silver, amount=101)
+    w2 = Wallet(curr_sys=gold_silver, amount=100)
 
     print(w1)
     print()
     print(w2)
     print()
-    print(w1 == w2)
+    print(w1 - w2)

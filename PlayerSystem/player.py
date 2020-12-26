@@ -1,5 +1,5 @@
 from __future__ import annotations
-from InventorySystem.inventory import Inventory, Item
+from InventorySystem.inventory import Inventory, Item, InventoryException
 from InventorySystem.currency import Wallet, CurrencySystem
 from colorama import Back, Fore, Style
 import numpy as np
@@ -212,13 +212,20 @@ class PlayerSystem:
             # need to ensure that the user has enough payment.
             # need this wallet >= payment
             if payment > self.wallet:
-                return False
+                return False, "Insufficient funds"
 
+            try:
+                # try adding item to inventory
+                self.inventory + item
+
+                # if no exception was raised, then the item fits in the inventory
+            except InventoryException:
+                # if an exception was raise, cannot fit item in inventory.
+                return False, "Insufficient space"
+
+            # in this case, there is sufficient funds and sufficient space
             self.wallet -= payment
-
-            pass
-
-        pass
+            self.inventory += item
 
     def _remove_from_inventory(self, item: Item = None, payment: Wallet = None):
         pass
