@@ -1,5 +1,6 @@
 from __future__ import annotations
 from InventorySystem.inventory import Inventory, Item
+from InventorySystem.currency import Wallet, CurrencySystem
 from colorama import Back, Fore, Style
 import numpy as np
 import math
@@ -135,7 +136,10 @@ class PlayerSystem:
     def __init__(self,
                  level: int = 1,
                  point_systems: list[PointSystem] = None,
-                 inventory: Inventory = None):
+                 inventory: Inventory = None,
+                 currency_system: CurrencySystem = None,
+                 init_wallet: Wallet = None,
+                 init_amount: int = 0):
         self.point_systems = point_systems
         experience_systems = [
                p_sys for p_sys in point_systems if type(p_sys) is ExpSys
@@ -160,6 +164,10 @@ class PlayerSystem:
             self.inventory = Inventory()
         else:
             self.inventory = inventory
+
+        self.wallet = Wallet(curr_sys=currency_system, amount=init_amount)
+        if init_wallet is not None:
+            self.wallet = init_wallet
 
     def __str__(self):
         level = None
@@ -199,10 +207,20 @@ class PlayerSystem:
         else:
             raise PlayerException("Gain Points called with system type not included in player")
 
-    def _add_to_inventory(self, item: Item = None, payment: int = None):
+    def _add_to_inventory(self, item: Item = None, payment: Wallet = None):
+        if payment is not None:
+            # need to ensure that the user has enough payment.
+            # need this wallet >= payment
+            if payment > self.wallet:
+                return False
+
+            self.wallet -= payment
+
+            pass
+
         pass
 
-    def _remove_from_inventory(self, item: Item = None, payment: int = None):
+    def _remove_from_inventory(self, item: Item = None, payment: Wallet = None):
         pass
 
 

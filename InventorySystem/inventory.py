@@ -9,7 +9,6 @@ import re
 from typing import Union, Dict, Any, List
 import warnings
 import random
-from InventorySystem.currency import Wallet, CurrencySystem
 
 init()
 
@@ -82,7 +81,6 @@ class Item:
         # generate padded fields and join together.
         item_strings = ["".join([it_str[i] + " "*(feature_lens[i] - ansilen(it_str[i]))
                         for i in range(len(feature_lens))]) for it_str in item_strings]
-
 
         return item_strings
 
@@ -571,6 +569,7 @@ class Inventory:
 
 
 FILTER_ACCEPT_ALL = ItemFilter({None: True, Any: True})
+
 
 if __name__ == "__main__":
     bows_cat = ItemCategory("Bows", fg=Fore.RED, stack_limit=1)

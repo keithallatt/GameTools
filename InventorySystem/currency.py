@@ -5,12 +5,13 @@ import math
 
 class Wallet:
     def __init__(self, curr_sys: CurrencySystem = None, amount: int = 0):
-        self.curr_sys = curr_sys
         if curr_sys is None:
             curr_sys = CurrencySystem()
         self.wallet = {denomination: 0 for denomination in curr_sys.denominations}
         lowest_denomination = curr_sys.denominations[-1]
         self.wallet[lowest_denomination] = amount
+        self.curr_sys = curr_sys
+        self.auto_stack()
 
     def __str__(self):
         max_len = max([len(denomination) for denomination in self.curr_sys.denominations],
@@ -22,16 +23,59 @@ class Wallet:
             ]
         )
 
-    def add_currency(self, denomination, amount, auto_stack=False):
+    def add_currency(self, denomination, amount, auto_stack=True):
         """ Adds amount of denomination to wallet, returns True on successful addition,
             False on unsuccessful addition. """
         try:
             self.wallet[denomination] += amount
             if auto_stack:
-                self.wallet = self.curr_sys.auto_stack(self).wallet
+                self.auto_stack()
             return True
         except KeyError:
             return False
+
+    def auto_stack(self):
+        lowest_denomination = self.curr_sys.denominations[-1]
+        total_amount = self.unstack()
+
+        new_wallet = OrderedDict({
+            denomination: 0 for denomination in self.curr_sys.denominations
+        })
+        current_value = 0
+        for denomination in self.curr_sys.denominations:
+            amount = self.curr_sys.convert((lowest_denomination, total_amount - current_value),
+                                           denomination, whole_number=True)
+            current_value += self.curr_sys.convert((denomination, amount), lowest_denomination)
+            new_wallet[denomination] = amount
+
+        self.wallet = new_wallet
+
+    def unstack(self):
+        lowest_denomination = self.curr_sys.denominations[-1]
+        amount = 0
+        for denomination in self.curr_sys.denominations:
+            amount += self.curr_sys.convert((denomination, self.wallet[denomination]),
+                                            lowest_denomination)
+
+        return amount
+
+    def __add__(self, other):
+        return
+
+    def __sub__(self, other):
+        return
+
+    def __gt__(self, other):
+        return self.unstack().__gt__(other.unstack())
+
+    def __lt__(self, other):
+        return self.unstack().__lt__(other.unstack())
+
+    def __ge__(self, other):
+        return self.unstack().__ge__(other.unstack())
+
+    def __le__(self, other):
+        return self.unstack().__le__(other.unstack())
 
 
 class CurrencySystem:
@@ -79,29 +123,19 @@ class CurrencySystem:
             return math.floor(amount)
         return amount
 
-    @staticmethod
-    def unstack(wallet: Wallet):
-        self = wallet.curr_sys
-        lowest_denomination = self.denominations[-1]
-        amount = 0
-        for denomination in self.denominations:
-            amount += self.convert((denomination, wallet.wallet[denomination]), lowest_denomination)
 
-        return amount
+if __name__ == "__main__":
+    gold_silver = CurrencySystem(relative_denominations=OrderedDict({
+        "Gold": 1,
+        "Silver": 10
+    }))
 
-    @staticmethod
-    def auto_stack(wallet: Wallet):
-        self = wallet.curr_sys
-        lowest_denomination = self.denominations[-1]
-        total_amount = CurrencySystem.unstack(wallet)
-
-        new_wallet = Wallet(curr_sys=self)
-
-        for denomination in self.denominations:
-            amount = self.convert((lowest_denomination, total_amount -
-                                   CurrencySystem.unstack(new_wallet)),
-                                  denomination, whole_number=True)
-            new_wallet.add_currency(denomination, amount)
+    w1 = Wallet(curr_sys=gold_silver, amount=100)
+    w2 = Wallet(curr_sys=gold_silver)
 
 
-        return new_wallet
+    print(w1)
+    print()
+    print(w2)
+    print()
+    print(w1 == w2)
