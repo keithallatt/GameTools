@@ -1,6 +1,7 @@
 from __future__ import annotations
 from colorama import Fore, Style, init
 import random
+import time
 
 init()
 
@@ -123,7 +124,7 @@ class AnagramPuzzle(PuzzleSystem):
                 try:
                     w = int(c) - 1
                     if 0 <= w < len(self.solution):
-                        ap.rotate_wheel(w)
+                        self.rotate_wheel(w)
                 except ValueError:
                     pass
         print(ap)
@@ -141,6 +142,76 @@ class AnagramPuzzle(PuzzleSystem):
         return ("\n" + repr(self.hint) + "\n") if self.hint is not None else ""
 
 
+class ColorPuzzle(PuzzleSystem):
+    """ Puzzle of the variety of respond with the color of the text, not what is written.
+        So if `blue` is written in red, the correct answer / response is 'red'. """
+    def __init__(self, num_rounds: int = 5, time_limit: int = 10, num_strikes: int = 3):
+        super().__init__()
+        self.colors = [
+            (Fore.RED, "red"),
+            (Fore.LIGHTYELLOW_EX, "yellow"),
+            (Fore.GREEN, "green"),
+            (Fore.BLUE, "blue")
+        ]
+        self.num_rounds = num_rounds
+        self.strikes = num_strikes
+        self.time_limit = time_limit
+        self.time_taken = None
+
+    def attempt(self):
+        input(self.get_rules())
+        successes = 0
+        failures = 0
+        start_time = time.time()
+        while True:
+            i = random.randint(0, 3)
+            j = random.randint(0, 3)
+            while j == i:
+                j = random.randint(0, 3)
+            word = self.colors[i][1]
+            color, solution = self.colors[j]
+
+            print(color + word + Style.RESET_ALL)
+
+            guess = input("> ")
+            if guess.strip().lower() == solution:
+                successes += 1
+            elif guess.strip().lower() == "leave":
+                return
+            else:
+                failures += 1
+
+            if successes == self.num_rounds:
+                self.time_taken = time.time() - start_time
+                print(f"Successfully answered {self.num_rounds} rounds!")
+                break
+            if failures == self.strikes:
+                self.time_taken = None
+                print(f"Answered {self.strikes} rounds incorrectly!")
+                break
+            if time.time() - start_time > self.time_limit:
+                self.time_taken = time.time() - start_time + 0.1  # just in case
+                print(f"Took longer than {self.time_limit} seconds!")
+                break
+
+    def is_solved(self) -> bool:
+        return self.time_taken is not None and self.time_taken <= self.time_limit
+
+    def get_rules(self) -> str:
+        return f"Respond to each prompt with the color of the text, not the color that is " \
+               f"written. \nYou have {self.time_limit} seconds to answer {self.num_rounds}" \
+               f" successfully, without making {self.strikes} or more mistakes.\nTime begins " \
+               f"when you hit enter. \n> "
+
+    def get_hint(self) -> str:
+        pass
+
+
 if __name__ == "__main__":
-    ap = AnagramPuzzle("obvious", [], wl=5, hint="The password is obvious")
+    ap = ColorPuzzle()
     ap.attempt()
+
+    if ap.is_solved():
+        print("Congratulations! You solved the puzzle!")
+    else:
+        print("Better luck next time!")

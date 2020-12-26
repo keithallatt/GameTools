@@ -103,4 +103,5 @@ class CurrencySystem:
                                   denomination, whole_number=True)
             new_wallet.add_currency(denomination, amount)
 
+
         return new_wallet

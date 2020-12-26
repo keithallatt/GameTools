@@ -9,7 +9,7 @@ import re
 from typing import Union, Dict, Any, List
 import warnings
 import random
-from currency import Wallet, CurrencySystem
+from InventorySystem.currency import Wallet, CurrencySystem
 
 init()
 
