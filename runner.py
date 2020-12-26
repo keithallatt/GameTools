@@ -13,7 +13,7 @@ from NPCSystem.test_npc import NPCTest
 
 
 def statistics():
-    def count_lines(start, lines=0, header=True, begin_start=None):
+    def count_lines(start, lines=0, files=0, header=True, begin_start=None):
         if header:
             print('{:>10} |{:>10} |{:>10} | {:<40}'.format('RAW', 'SLOC', 'TOTAL', 'FILE'))
             print('{:->11}|{:->11}|{:->11}|{:->40}'.format('', '', '', ''))
@@ -24,9 +24,12 @@ def statistics():
                 if thing.endswith('.py') and not thing.endswith("__init__.py"):
                     with open(thing, 'r') as f:
                         newlines = f.readlines()
-                        sloc_lines = len([line for line in newlines if len(line.strip()) > 0])
+                        sloc = [line.strip() for line in newlines if len(line.strip()) > 0]
+                        comments = [line for line in sloc if line.startswith("#")]
+                        sloc_lines = len(sloc) - len(comments)
                         newlines = len(newlines)
                         lines += sloc_lines
+                        files += 1
 
                         pack_name = start.split(os.sep)[-1]
 
@@ -41,9 +44,9 @@ def statistics():
         for thing in os.listdir(start):
             thing = os.path.join(start, thing)
             if os.path.isdir(thing):
-                lines = count_lines(thing, lines, header=False, begin_start=start)
+                lines, files = count_lines(thing, lines, files, header=False, begin_start=start)
 
-        return lines
+        return lines, files
 
     working_dir = os.getcwd() + os.sep
 
@@ -56,15 +59,18 @@ def statistics():
     ]
 
     total_lines = 0
+    total_files = 0
 
+    length_of_dash = 76
     for folder in folders:
-        length_of_dash = 76
         print("-"*length_of_dash)
         print(Fore.RED + f"Counting {working_dir.split(os.sep)[-2] + os.sep + folder}" + Fore.RESET)
         print("-"*length_of_dash)
-        total_lines = count_lines(start=working_dir + folder, lines=total_lines)
+        total_lines, total_files = count_lines(start=working_dir + folder,
+                                               lines=total_lines,files=total_files)
     print("-"*length_of_dash)
 
+    print("Total number of files: " + str(total_files))
     print("Total lines of code: " + str(total_lines))
 
 

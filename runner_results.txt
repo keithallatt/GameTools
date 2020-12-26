@@ -8,7 +8,7 @@ test_map_copy (MapSystem.test_map.MapTest) ... ok
 test_map_exception (MapSystem.test_map.MapTest) ... ok
 
 ----------------------------------------------------------------------
-Ran 5 tests in 0.162s
+Ran 5 tests in 0.125s
 
 OK
 
@@ -22,22 +22,22 @@ Counting GameTools/MapSystem
 ----------------------------------------------------------------------------
        RAW |      SLOC |     TOTAL | FILE                                    
 -----------|-----------|-----------|----------------------------------------
-       177 |       139 |       139 | MapSystem/map.py              
-        29 |        21 |       160 | MapSystem/test_map.py         
+       177 |       134 |       134 | MapSystem/map.py              
+        29 |        19 |       153 | MapSystem/test_map.py         
 ----------------------------------------------------------------------------
 Counting GameTools/PlayerSystem
 ----------------------------------------------------------------------------
        RAW |      SLOC |     TOTAL | FILE                                    
 -----------|-----------|-----------|----------------------------------------
-       228 |       180 |       340 | PlayerSystem/player.py        
+       235 |       180 |       333 | PlayerSystem/player.py        
 ----------------------------------------------------------------------------
 Counting GameTools/NPCSystem
 ----------------------------------------------------------------------------
        RAW |      SLOC |     TOTAL | FILE                                    
 -----------|-----------|-----------|----------------------------------------
-        73 |        59 |       399 | NPCSystem/npc_types.py        
-         9 |         6 |       405 | NPCSystem/test_npc.py         
-        40 |        34 |       439 | NPCSystem/npc_conversation.py 
+        73 |        59 |       392 | NPCSystem/npc_types.py        
+         9 |         5 |       397 | NPCSystem/test_npc.py         
+        40 |        33 |       430 | NPCSystem/npc_conversation.py 
 ----------------------------------------------------------------------------
 Counting GameTools/CombatSystem
 ----------------------------------------------------------------------------
@@ -48,14 +48,15 @@ Counting GameTools/InventorySystem
 ----------------------------------------------------------------------------
        RAW |      SLOC |     TOTAL | FILE                                    
 -----------|-----------|-----------|----------------------------------------
-        62 |        43 |       482 | InventorySystem/test_inventory.py
-       140 |       112 |       594 | InventorySystem/currency.py   
-       597 |       475 |      1069 | InventorySystem/inventory.py  
+        62 |        37 |       467 | InventorySystem/test_inventory.py
+       152 |       110 |       577 | InventorySystem/currency.py   
+       597 |       444 |      1021 | InventorySystem/inventory.py  
 ----------------------------------------------------------------------------
 Counting GameTools/PuzzleSystem
 ----------------------------------------------------------------------------
        RAW |      SLOC |     TOTAL | FILE                                    
 -----------|-----------|-----------|----------------------------------------
-       217 |       177 |      1246 | PuzzleSystem/puzzle.py        
+       217 |       175 |      1196 | PuzzleSystem/puzzle.py        
 ----------------------------------------------------------------------------
-Total lines of code: 1246
+Total number of files: 10
+Total lines of code: 1196
