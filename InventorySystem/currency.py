@@ -2,6 +2,31 @@ from __future__ import annotations
 from collections import OrderedDict
 from typing import Union
 import math
+from io import TextIOWrapper
+import json
+
+
+class PriceRegistry:
+    """ Represents a unified list for any shopkeeper npc to use to buy items from the player """
+    def __init__(self,
+                 read_file: TextIOWrapper = None,  # direct file / textio object to read from
+                 read_file_path: str = None,  # file path to open itself
+                 ):
+
+        if read_file is None and read_file_path is not None:
+            read_file = open(read_file_path, 'r')
+        if read_file is not None and read_file_path is None:
+            read_file_path = read_file.name
+
+        self.read_file = read_file
+        self.read_file_path = read_file_path
+
+        self.registry = {}
+        if read_file is not None:
+            self.registry = json.loads(read_file.read())
+
+    def add_to_registry(self, item_name, item_price):
+        self.registry.update({item_name: item_price})
 
 
 class CurrencyException(Exception):

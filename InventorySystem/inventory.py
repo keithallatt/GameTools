@@ -9,6 +9,7 @@ import re
 from typing import Union, Dict, Any, List
 import warnings
 import random
+from InventorySystem.currency import Wallet, PriceRegistry
 
 init()
 
@@ -25,6 +26,10 @@ class Item:
         self.color = kwargs.get("color", None)
         self.category = kwargs.get("category", None)
         self.price = kwargs.get("price", None)
+        if type(self.price) == int:
+            # if provided a number:
+            self.price = Wallet(amount=self.price)
+
         self.unit_weight = kwargs.get("unit_weight", None)
 
         if self.unit_weight is not None and self.unit_weight <= 0:
@@ -60,7 +65,6 @@ class Item:
     def __add__(self, other: Item):
         if self.name != other.name:
             raise InventoryException(self, msg="Item addition on different items")
-
         return self.copy(quantity=self.quantity + other.quantity)
 
     @staticmethod
@@ -85,7 +89,6 @@ class Item:
         return item_strings
 
     def fields(self):
-        remove_whitespace = re.compile(r'\s+')
         return [
             (self.color if self.color is not None else self.category.before_str()
              if self.category is not None else "") + self.name + Style.RESET_ALL,
@@ -93,7 +96,7 @@ class Item:
             ("x" + str(self.quantity) if self.quantity != 1 else "") +
             (Style.RESET_ALL if self.quantity == 0 else ""),
             (str(self.unit_weight) + "g" if self.unit_weight is not None else ""),
-            (remove_whitespace.sub('', str(self.price)) if self.price is not None else "")
+            (" ".join(str(self.price).split("\n")) if self.price is not None else "")
         ]
 
     def copy(self, **kwargs):
@@ -105,6 +108,9 @@ class Item:
         kw.update(kwargs)
 
         return Item(self.name, **kw)
+
+    def add_self_to_registry(self, registry: PriceRegistry):
+        registry.add_to_registry(self.name, self.price.unstack())
 
 
 class ItemCategory:

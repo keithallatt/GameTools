@@ -5,15 +5,14 @@ from InventorySystem.inventory import *
 class ShopKeeper(NPC):
     def __init__(self, name, item_list: list[Item]):
         super().__init__(name)
-        self.inv = InventorySystem(remove_on_0=False)
+        self.inv = InventorySystem(remove_on_0=False, item_filter=FILTER_ACCEPT_ALL)
 
         for item in item_list:
             self.inv += item
 
         self.conversation = [
             ("Good day!! How can I help you? "
-             "Are you here to buy or sell?", {"b": 1, "s": 2}),
-            ("Take a look at what I have!", {"k": 3}),
+             "Are you here to buy or sell?", {"b": 2, "s": 1}),
             ("Sorry, I can't buy anything from you at this moment", {}),
             (self.see_stock, self.buy_stock),
             ("Goodbye!", {})
@@ -69,5 +68,5 @@ if __name__ == "__main__":
 
     shopkeep = ShopKeeper("Moni Spender", it_lst)
 
-    shopkeep.talk()
+    #shopkeep.talk()
 

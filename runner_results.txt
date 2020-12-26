@@ -8,7 +8,7 @@ test_map_copy (MapSystem.test_map.MapTest) ... ok
 test_map_exception (MapSystem.test_map.MapTest) ... ok
 
 ----------------------------------------------------------------------
-Ran 5 tests in 0.125s
+Ran 5 tests in 0.194s
 
 OK
 
@@ -52,11 +52,5 @@ Counting GameTools/InventorySystem
        152 |       110 |       577 | InventorySystem/currency.py   
        597 |       444 |      1021 | InventorySystem/inventory.py  
 ----------------------------------------------------------------------------
-Counting GameTools/PuzzleSystem
-----------------------------------------------------------------------------
-       RAW |      SLOC |     TOTAL | FILE                                    
------------|-----------|-----------|----------------------------------------
-       217 |       175 |      1196 | PuzzleSystem/puzzle.py        
-----------------------------------------------------------------------------
-Total number of files: 10
-Total lines of code: 1196
+Total number of files: 9
+Total lines of code: 1021
