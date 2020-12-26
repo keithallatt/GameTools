@@ -15,17 +15,18 @@ from NPCSystem.test_npc import NPCTest
 def statistics():
     def count_lines(start, lines=0, header=True, begin_start=None):
         if header:
-            print('{:>10} |{:>10} | {:<20}'.format('ADDED', 'TOTAL', 'FILE'))
-            print('{:->11}|{:->11}|{:->20}'.format('', '', ''))
+            print('{:>10} |{:>10} |{:>10} | {:<40}'.format('RAW', 'SLOC', 'TOTAL', 'FILE'))
+            print('{:->11}|{:->11}|{:->11}|{:->40}'.format('', '', '', ''))
 
         for thing in os.listdir(start):
             thing = os.path.join(start, thing)
             if os.path.isfile(thing):
-                if thing.endswith('.py'):
+                if thing.endswith('.py') and not thing.endswith("__init__.py"):
                     with open(thing, 'r') as f:
                         newlines = f.readlines()
+                        sloc_lines = len([line for line in newlines if len(line.strip()) > 0])
                         newlines = len(newlines)
-                        lines += newlines
+                        lines += sloc_lines
 
                         pack_name = start.split(os.sep)[-1]
 
@@ -34,8 +35,8 @@ def statistics():
                         else:
                             rel_dir_of_thing = pack_name + thing.replace(start, '')
 
-                        print('{:>10} |{:>10} | {:<20}'.format(
-                            newlines, lines, Fore.MAGENTA+rel_dir_of_thing+Fore.RESET))
+                        print('{:>10} |{:>10} |{:>10} | {:<40}'.format(
+                            newlines, sloc_lines, lines, Fore.MAGENTA+rel_dir_of_thing+Fore.RESET))
 
         for thing in os.listdir(start):
             thing = os.path.join(start, thing)
@@ -57,11 +58,12 @@ def statistics():
     total_lines = 0
 
     for folder in folders:
-        print("-"*44)
+        length_of_dash = 76
+        print("-"*length_of_dash)
         print(Fore.RED + f"Counting {working_dir.split(os.sep)[-2] + os.sep + folder}" + Fore.RESET)
-        print("-"*44)
+        print("-"*length_of_dash)
         total_lines = count_lines(start=working_dir + folder, lines=total_lines)
-        print("-"*44)
+    print("-"*length_of_dash)
 
     print("Total lines of code: " + str(total_lines))
 
