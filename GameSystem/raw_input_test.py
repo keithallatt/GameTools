@@ -1,12 +1,13 @@
 """ Seems to work! """
-
 from pynput import keyboard
+
 
 options = [
     "Yes", "No", "Maybe"
 ]
 
 index = 0
+
 
 def option_str():
     global index, options
@@ -35,17 +36,11 @@ def on_release(key):
         # Stop listener
         return False
 
-print('\r' + option_str(), end="")
 
-# Collect events until released
-with keyboard.Listener(
-        on_press=on_press,
-        on_release=on_release, suppress=True) as listener:
-    listener.join()
-
-# ...or, in a non-blocking fashion:
-#listener = keyboard.Listener(
-#    on_press=on_press,
-#    on_release=on_release,
-#    suppress=True)
-#listener.start()
+if __name__ == "__main__":
+    print('\r' + option_str(), end="")
+    # Collect events until released
+    with keyboard.Listener(
+            on_press=on_press,
+            on_release=on_release, suppress=True) as listener:
+        listener.join()

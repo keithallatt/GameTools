@@ -4,6 +4,13 @@ import os
 import re
 
 
+def continuous_input(prompt: str, acceptable_responses: list[str]):
+    resp = input(prompt)
+    while resp not in acceptable_responses:
+        resp = input(prompt)
+    return resp
+
+
 def install(package):
     subprocess.check_call([sys.executable, "-m", "pip", "install", package])
 
@@ -16,10 +23,17 @@ def install_all_packages(modules_to_try):
         except ImportError as e:
             successful = False
             print("Failed to import", module, "\nAttempting to install.")
-            install(e.name)
+            response = continuous_input("Install module "+module+" (y/n)? ", ['y', 'n'])
+            if response == 'y':
+                install(e.name)
+                successful = True
+            else:
+                successful = False
     if successful:
         print("All modules are installed.")
-
+    else:
+        print("Missing modules not installed.")
+        exit(1)
 
 def find_all_packages():
     # since in a sub-folder
