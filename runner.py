@@ -8,9 +8,14 @@ from io import StringIO
 import tokenize
 
 # import test modules
+from CombatSystem.test_combat import CombatTest
 from InventorySystem.test_inventory import InventoryTest
+from InventorySystem.test_currency import CurrencyTest
 from MapSystem.test_map import MapTest
 from NPCSystem.test_npc import NPCTest
+from PlayerSystem.test_player import PlayerTest
+
+class_tests = [CombatTest, InventoryTest, CurrencyTest, MapTest, NPCTest, PlayerTest]
 
 
 def statistics():
@@ -59,7 +64,13 @@ def statistics():
         for thing in os.listdir(start):
             thing = os.path.join(start, thing)
             if os.path.isfile(thing):
-                if thing.endswith('.py') and not thing.endswith("__init__.py"):
+                if thing.endswith('.py'):
+                    if thing.endswith("__init__.py"):
+                        # see if the file is worth reading
+                        if len([line for line in open(thing, 'r').readlines() if
+                             len(line.strip()) > 0]) == 0:
+                            continue
+
                     with open(thing, 'r') as f:
                         newlines = f.readlines()
                         source_lines = remove_comments_and_docstrings("\n".join(newlines))
@@ -120,9 +131,8 @@ def run_all_tests():
     suite = unittest.TestSuite()
 
     # add tests to the test suite
-    suite.addTests(loader.loadTestsFromTestCase(InventoryTest))
-    suite.addTests(loader.loadTestsFromTestCase(MapTest))
-    suite.addTests(loader.loadTestsFromTestCase(NPCTest))
+    for test_cls in class_tests:
+        suite.addTests(loader.loadTestsFromTestCase(test_cls))
 
     # initialize a runner, pass it your suite and run it
     str_io_stream = StringIO()

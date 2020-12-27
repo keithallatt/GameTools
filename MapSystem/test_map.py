@@ -3,6 +3,7 @@ from unittest import TestCase
 from MapSystem.map import Map, MazeSystem, BlankSystem, MapException
 import MapSystem.map as map_sys
 
+
 class MapTest(TestCase):
     def test_map_copy(self):
         for s in range(2, 6):
