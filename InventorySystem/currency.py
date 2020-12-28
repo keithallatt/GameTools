@@ -3,30 +3,47 @@ from collections import OrderedDict
 from typing import Union
 import math
 from io import TextIOWrapper
+import os
 import json
 
 
 class PriceRegistry:
     """ Represents a unified list for any shopkeeper npc to use to buy items from the player """
-    def __init__(self,
+    def __init__(self, registry: dict[str, int] = None,
                  read_file: TextIOWrapper = None,  # direct file / text io object to read from
                  read_file_path: str = None):  # file path to open itself
         """ Create a price registry from file. """
         if read_file is None and read_file_path is not None:
-            read_file = open(read_file_path, 'r')
+            try:
+                read_file = open(read_file_path, 'r')
+            except FileNotFoundError:
+                read_file = None
+
         if read_file is not None and read_file_path is None:
             read_file_path = read_file.name
 
         self.read_file = read_file
         self.read_file_path = read_file_path
 
-        self.registry = {}
+        self.registry = registry
+        if registry is None:
+            self.registry = {}
+
         if read_file is not None:
             self.registry = json.loads(read_file.read())
+
+    def __str__(self):
+        """ Represent the registry as a list of items and prices """
+        return "\n".join([k + " -> " + str(v) for k, v in self.registry.items()])
 
     def add_to_registry(self, item_name: str, item_price: int):
         """ Add a new entry to the registry """
         self.registry.update({item_name: item_price})
+
+    def save_to_file(self):
+        with open(self.read_file_path, 'w') as file:
+            file.write(json.dumps(self.registry))
+            file.close()
 
 
 class CurrencyException(Exception):
@@ -188,16 +205,12 @@ class CurrencySystem:
 
 
 if __name__ == "__main__":
-    gold_silver = CurrencySystem(relative_denominations=OrderedDict({
-        "Gold": 1,
-        "Silver": 10
-    }))
+    mock_project = "MockProject"
+    mock_dir = os.sep.join(os.getcwd().split(os.sep)[:-1]) + os.sep + mock_project + os.sep
+    mock_registry = mock_dir + "Registry.json"
 
-    w1 = Wallet(curr_sys=gold_silver, amount=101)
-    w2 = Wallet(curr_sys=gold_silver, amount=100)
+    pr = PriceRegistry(read_file_path=mock_registry)
+    print(pr)
 
-    print(w1)
-    print()
-    print(w2)
-    print()
-    print(w1 - w2)
+    pr.save_to_file()
+
