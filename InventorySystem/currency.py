@@ -5,6 +5,7 @@ import math
 from io import TextIOWrapper
 import os
 import json
+import warnings
 
 
 class PriceRegistry:
@@ -30,7 +31,11 @@ class PriceRegistry:
             self.registry = {}
 
         if read_file is not None:
-            self.registry = json.loads(read_file.read())
+            try:
+                self.registry = json.loads(read_file.read())
+            except json.decoder.JSONDecodeError:
+                warnings.warn(f"Registry file {read_file_path} corrupted.")
+                self.registry = {}
 
     def __str__(self):
         """ Represent the registry as a list of items and prices """
@@ -41,8 +46,9 @@ class PriceRegistry:
         self.registry.update({item_name: item_price})
 
     def save_to_file(self):
+        """ Save the registry to file """
         with open(self.read_file_path, 'w') as file:
-            file.write(json.dumps(self.registry))
+            file.write(json.dumps(self.registry, indent=4, sort_keys=True))
             file.close()
 
 
@@ -213,4 +219,3 @@ if __name__ == "__main__":
     print(pr)
 
     pr.save_to_file()
-

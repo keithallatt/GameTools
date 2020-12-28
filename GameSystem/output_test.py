@@ -1,5 +1,6 @@
 import curses
 import time
+import ascii_art_test
 
 """
 If not running in Pycharm:
@@ -12,14 +13,14 @@ console = curses.initscr()  # initialize is our playground
 
 
 # this can be more streamlined but it's enough for demonstration purposes...
-def draw_board(width, height, charset="+-| "):
-    h_line = charset[0] + charset[1] * (width - 2) + charset[0]
-    v_line = charset[2] + charset[3] * (width - 2) + charset[2]
+def draw_board(text):
     console.clear()
-    console.addstr(0, 0, h_line)
-    for line in range(1, height):
-        console.addstr(line, 0, v_line)
-    console.addstr(height-1, 0, h_line)
+
+    ascii_art = ascii_art_test.ascii_art(" ".join(text), x_margin=2, shadow=True, trim=True).split("\n")
+
+    for i in range(len(ascii_art)):
+        console.addstr(i, 0, ascii_art[i])
+
     console.refresh()
 
 
@@ -28,12 +29,15 @@ def draw_star(x, y, char="*"):
     console.refresh()
 
 
-draw_board(10, 10)  # draw a board
-time.sleep(1)  # wait a second
-draw_star(6, 6)  # draw our star
-time.sleep(1)  # wait a second
-draw_star(6, 6, " ")  # clear the star
-draw_star(3, 3)  # place the star on another position
-time.sleep(3)  # wait a few seconds
+time_taken = 2
+
+draw_board("Hi")  # draw a board
+time.sleep(time_taken)  # wait a second
+draw_board("Hello")  # draw a board
+time.sleep(time_taken)  # wait a second
+draw_board("Hey")  # draw a board
+time.sleep(time_taken)  # wait a second
+draw_board("Bye")  # draw a board
+time.sleep(time_taken)  # wait a second
 
 curses.endwin()  # return control back to the console
