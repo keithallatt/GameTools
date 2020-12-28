@@ -18,7 +18,7 @@ from PlayerSystem.test_player import PlayerTest
 class_tests = [CombatTest, InventoryTest, CurrencyTest, MapTest, NPCTest, PlayerTest]
 
 
-def statistics():
+def statistics(condensed=False):
     """ Generate statistics about the project.
          - Number of files scanned,
          - Number of lines of text,
@@ -57,11 +57,16 @@ def statistics():
             last_line_no = end_line
         return [line for line in out.splitlines() if line.strip()]
 
-    def count_lines(start, lines=0, files=0, header=True, begin_start=None):
+    def count_lines(start, lines=0, source_loc=0, files=0,
+                    header=True, begin_start=None, condensed=False):
         """
         Modified from:
         https://stackoverflow.com/questions/38543709/count-lines-of-code-in-directory-using-python
         """
+
+        if start.endswith("__pycache__"):
+            return lines, source_loc, files
+
         if header:
             print('{:>10} |{:>10} |{:>10} | {:<40}'.format('RAW', 'S.L.O.C.', 'TOTAL', 'FILE'))
             print('{:->11}|{:->11}|{:->11}|{:->40}'.format('', '', '', ''))
@@ -73,16 +78,17 @@ def statistics():
                     if thing.endswith("__init__.py"):
                         # see if the file is worth reading
                         if len([line for line in open(thing, 'r').readlines() if
-                             len(line.strip()) > 0]) == 0:
+                               len(line.strip()) > 0]) == 0:
                             continue
 
                     with open(thing, 'r') as f:
                         newlines = f.readlines()
-                        source_lines = remove_comments_and_docstrings("\n".join(newlines))
+                        source = remove_comments_and_docstrings("\n".join(newlines))
                         newlines = len(newlines)
-                        source_lines_num = len(source_lines)
+                        source_lines_num = len(source)
 
-                        lines += source_lines_num
+                        source_loc += source_lines_num
+                        lines += newlines
                         files += 1
 
                         pack_name = start.split(os.sep)[-1]
@@ -92,22 +98,30 @@ def statistics():
                         else:
                             rel_dir_of_thing = pack_name + thing.replace(start, '')
 
-                        print('{:>10} |{:>10} |{:>10} | {:<40}'.format(
-                            newlines, source_lines_num, lines,
-                            Fore.MAGENTA+rel_dir_of_thing+Fore.RESET))
+                        if not condensed:
+                            print('{:>10} |{:>10} |{:>10} | {:<40}'.format(
+                                newlines, source_lines_num, lines,
+                                Fore.MAGENTA+rel_dir_of_thing+Fore.RESET))
+
+        if condensed:
+            print('{:>10} |{:>10} |{:>10} | {:<40}'.format(
+                lines, source_loc, lines,
+                Fore.MAGENTA+start+Fore.RESET))
 
         for thing in os.listdir(start):
             thing = os.path.join(start, thing)
             if os.path.isdir(thing):
-                lines, files = count_lines(thing, lines, files, header=False, begin_start=start)
+                lines, source_loc, files = count_lines(thing, lines, source_loc,
+                                                       files, header=False,
+                                                       begin_start=start, condensed=condensed)
 
-        return lines, files
+        return lines, source_loc, files
 
     working_dir = os.getcwd() + os.sep
 
     def add_module_path(sd):
         """ Provided sd is a folder within the current working directory, and that folder is
-            a Python3+ module, """
+            a Python3+ module, format the filename of the __init__.py file """
         return working_dir + sd + os.sep + "__init__.py"
 
     folders = [
@@ -117,19 +131,31 @@ def statistics():
 
     total_lines = 0
     total_files = 0
+    source_lines = 0
 
     length_of_dash = 76
+
+    header = True
+
     for folder in folders:
-        print("-"*length_of_dash)
-        print(Fore.RED + f"Counting {working_dir.split(os.sep)[-2] + os.sep + folder}" + Fore.RESET)
-        print("-"*length_of_dash)
-        total_lines, total_files = count_lines(start=working_dir + folder,
-                                               lines=total_lines,
-                                               files=total_files)
+        if not condensed:
+            print("-"*length_of_dash)
+            print(Fore.RED + f"Counting {working_dir.split(os.sep)[-2] + os.sep + folder}" + Fore.RESET)
+            print("-"*length_of_dash)
+        total_lines, source_lines, total_files = count_lines(start=working_dir + folder,
+                                                             lines=total_lines,
+                                                             source_loc=source_lines,
+                                                             files=total_files,
+                                                             header=header,
+                                                             condensed=condensed)
+        if condensed and header:
+            header = False
+
     print("-"*length_of_dash)
 
     print("Total number of files: " + str(total_files))
-    print("Total lines of code: " + str(total_lines))
+    print("Total lines in files: " + str(total_lines))
+    print("Total lines of code: " + str(source_lines))
 
 
 def run_all_tests():
@@ -152,6 +178,8 @@ def run_all_tests():
 
 
 if __name__ == "__main__":
+    condensed = True
+
     output_file = open("runner_results.txt", 'w')
     io_stream = StringIO()
 
@@ -168,10 +196,14 @@ if __name__ == "__main__":
     print(Fore.MAGENTA+"Running test suite ... " + Fore.RESET)
     print("-"*70)
     print(Fore.RESET + test_result.replace(" ... ok",
-                                           f" ... {Fore.GREEN}ok{Fore.RESET}") + Fore.RESET)
+                                           f" ... {Fore.GREEN}ok{Fore.RESET}"
+                                           ).replace(
+                                           " ... FAIL",
+                                           f" ... {Fore.RED}FAIL{Fore.RESET}"
+                                           ) + Fore.RESET)
     print("Tests run: %s\nErrors: %s\nFailures: %s\n\n" % (run, errors, failures))
 
-    statistics()
+    statistics(condensed=condensed)
 
     sys.stdout = sys.__stdout__
     print(io_stream.getvalue())
