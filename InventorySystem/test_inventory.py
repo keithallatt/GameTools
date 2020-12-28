@@ -2,7 +2,6 @@ from unittest import TestCase
 
 # need InventorySystem.inventory since suite outside inventory system folder
 from InventorySystem.inventory import Item, InventorySystem, InventoryException, ItemFilter
-from colorama import Fore
 
 
 class InventoryTest(TestCase):
@@ -12,7 +11,7 @@ class InventoryTest(TestCase):
         # test a range of multiplications of items
         for init_q in range(10):
             for multiply_q in range(10):
-                foo = Item("foo", quantity=init_q, color=Fore.BLUE)
+                foo = Item("foo", quantity=init_q)
                 multiply_foo = foo * multiply_q
 
                 self.assertEqual(multiply_foo.quantity, multiply_q * init_q)

@@ -1,13 +1,11 @@
 from PIL import Image, ImageDraw, ImageFont
 import numpy as np
-from colorama import Fore, Back, Style
 
 
 def ascii_art(text: str, font: str = "Arial.ttf",
               font_size: int = 15, x_margin: int = 0,
               y_margin: int = 0, shadow_char: str = "\\",
-              fill_char: str = "#", fg: Fore = None,
-              bg: Back = None, double_width: bool = False,
+              fill_char: str = "#", double_width: bool = False,
               trim: bool = False, shadow: bool = False):
 
     try:
@@ -33,7 +31,6 @@ def ascii_art(text: str, font: str = "Arial.ttf",
 
     pixels = np.array(img, dtype=np.uint8)
 
-
     if shadow:
         shadow_pixels1 = np.roll(pixels, (1, 0), axis=(0, 1))
         shadow_pixels2 = np.roll(pixels, (1, 1), axis=(0, 1))
@@ -44,7 +41,6 @@ def ascii_art(text: str, font: str = "Arial.ttf",
         pixels = np.maximum(pixels, shadow_pixels3)
     else:
         pixels = 2 * pixels
-
 
     if trim:
         # while pixels' edges are all zeros
@@ -67,19 +63,8 @@ def ascii_art(text: str, font: str = "Arial.ttf",
         string = string.replace(fill_char, 2 * fill_char)
         string = string.replace(shadow_char, 2 * shadow_char)
 
-    color = (fg if fg is not None else "") + (bg if bg is not None else "")
-
-    if bg is not None:
-        string = string.replace(fill_char, color + fill_char + Style.RESET_ALL)
-        string = string.replace(Style.RESET_ALL + color, '')
-
-    if shadow and bg is not None:
-        string = string.replace(shadow_char, Fore.LIGHTBLACK_EX + Back.LIGHTBLACK_EX +
-                                fill_char + Style.RESET_ALL)
-
     return string
 
 
 if __name__ == "__main__":
-    print(ascii_art("How are you?", x_margin=2, fg=Fore.BLUE, bg=Back.BLUE,
-                    shadow=True, trim=True))
+    print(ascii_art("How are you?", x_margin=2, shadow=True, trim=True))

@@ -1,7 +1,6 @@
 from __future__ import annotations
 from InventorySystem.inventory import Inventory, Item, InventoryException
 from InventorySystem.currency import Wallet, CurrencySystem
-from colorama import Back, Fore, Style
 import numpy as np
 import math
 from ansiwrap import *
@@ -87,8 +86,7 @@ class ExpSys(PointSystem):
         """ Display experience points as a bar being filled """
         if self.exp is None or self.max_exp is None:
             return ""
-        return "|" + Fore.YELLOW + Back.YELLOW + \
-               "#" * (bar_length * self.exp // self.max_exp) + Style.RESET_ALL + \
+        return "|" + "#" * (bar_length * self.exp // self.max_exp) + \
                " " * (bar_length - (bar_length * self.exp // self.max_exp)) + "|"
 
 
@@ -138,16 +136,8 @@ class HealthSys(PointSystem):
         """ Display experience points as a bar being filled """
         if self.hp is None or self.max_hp is None:
             return ""
-        ratio = self.hp / self.max_hp
-        if ratio <= 0.2:
-            color = Fore.RED + Back.RED
-        elif ratio <= 0.5:
-            color = Fore.LIGHTYELLOW_EX + Back.LIGHTYELLOW_EX
-        else:
-            color = Fore.GREEN + Back.GREEN
 
-        return "|" + color + color + \
-               "#" * math.ceil(bar_length * self.hp / self.max_hp) + Style.RESET_ALL + \
+        return "|" + "#" * math.ceil(bar_length * self.hp / self.max_hp) + \
                " " * (bar_length - math.ceil(bar_length * self.hp / self.max_hp)) + "|"
 
 

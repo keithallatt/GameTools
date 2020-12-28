@@ -3,7 +3,6 @@ import unittest
 import os
 import sys
 import re
-from colorama import Fore
 from io import StringIO
 import tokenize
 
@@ -101,12 +100,11 @@ def statistics(condensed=False):
                         if not condensed:
                             print('{:>10} |{:>10} |{:>10} | {:<40}'.format(
                                 newlines, source_lines_num, lines,
-                                Fore.MAGENTA+rel_dir_of_thing+Fore.RESET))
+                                rel_dir_of_thing))
 
         if condensed:
             print('{:>10} |{:>10} |{:>10} | {:<40}'.format(
-                lines, source_loc, lines,
-                Fore.MAGENTA+start+Fore.RESET))
+                lines, source_loc, lines, start))
 
         for thing in os.listdir(start):
             thing = os.path.join(start, thing)
@@ -140,7 +138,7 @@ def statistics(condensed=False):
     for folder in folders:
         if not condensed:
             print("-"*length_of_dash)
-            print(Fore.RED + f"Counting {working_dir.split(os.sep)[-2] + os.sep + folder}" + Fore.RESET)
+            print(f"Counting {working_dir.split(os.sep)[-2] + os.sep + folder}")
             print("-"*length_of_dash)
         total_lines, source_lines, total_files = count_lines(start=working_dir + folder,
                                                              lines=total_lines,
@@ -193,14 +191,9 @@ if __name__ == "__main__":
     run, errors, failures = m.groups()
 
     print("-"*70)
-    print(Fore.MAGENTA+"Running test suite ... " + Fore.RESET)
+    print("Running test suite ... ")
     print("-"*70)
-    print(Fore.RESET + test_result.replace(" ... ok",
-                                           f" ... {Fore.GREEN}ok{Fore.RESET}"
-                                           ).replace(
-                                           " ... FAIL",
-                                           f" ... {Fore.RED}FAIL{Fore.RESET}"
-                                           ) + Fore.RESET)
+    print(test_result)
     print("Tests run: %s\nErrors: %s\nFailures: %s\n\n" % (run, errors, failures))
 
     statistics(condensed=condensed)

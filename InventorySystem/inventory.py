@@ -1,5 +1,4 @@
 from __future__ import annotations
-from colorama import Fore, Back, Style, init
 from ansiwrap import *
 import jsonpickle
 import json
@@ -10,8 +9,6 @@ from typing import Union, Dict, Any, List
 import warnings
 import random
 from InventorySystem.currency import Wallet, PriceRegistry
-
-init()
 
 
 class Item:
@@ -107,11 +104,9 @@ class Item:
         """ Return a list of fields required to display the item as part of
             an inventory system, including ansi colors around particular fields. """
         return [
-            (self.color if self.color is not None else self.category.before_str()
-             if self.category is not None else "") + self.name + Style.RESET_ALL,
-            (Fore.RED if self.quantity == 0 else "") +
-            ("x" + str(self.quantity) if self.quantity != 1 else "") +
-            (Style.RESET_ALL if self.quantity == 0 else ""),
+            self.name,
+            ("~" if self.quantity == 0 else "") +
+            ("x" + str(self.quantity) if self.quantity != 1 else ""),
             (str(self.unit_weight) + "g" if self.unit_weight is not None else ""),
             (" ".join(str(self.price).split("\n")) if self.price is not None else "")
         ]
@@ -134,19 +129,13 @@ class Item:
 class ItemCategory:
     """ Category for items. Each item can belong to multiple categories, but it is
         recommended that only one be used. """
-    def __init__(self, name: str, fg: Fore = Fore.RESET, bg: Back = Back.RESET, **kwargs):
+    def __init__(self, name: str, **kwargs):
         """ Define a new category. Can include foreground and background colors,
             as well as stack limits or max slot capacities. """
         self.name = name
-        self.fg = fg
-        self.bg = bg
 
         self.stack_limit = kwargs.get("stack_limit", None)
         self.max_slots = kwargs.get("max_slots", None)
-
-    def before_str(self):
-        """ Used to color the text using ansi, comes before the category name. """
-        return self.fg + self.bg
 
     def __str__(self):
         """ Return ANSI free representation of the category """
@@ -156,11 +145,11 @@ class ItemCategory:
         """ Equality of all fields. """
         if other is None:
             return False
-        return self.name == other.name and self.fg == other.fg and self.bg == other.bg
+        return self.name == other.name
 
     def __hash__(self):
         """ Return hash of string representation with ANSI escape codes. """
-        return hash(str(self.before_str()+self.name))
+        return hash(self.name)
 
 
 class ItemFilter:
@@ -283,10 +272,6 @@ class InventorySystem:
         # option to remove items from inventory stack list when 0 of item are in stack
         self.remove_on_0 = kwargs.get("remove_on_0", True)
         self.kwargs.update({"remove_on_0": self.remove_on_0})
-
-        # remove ANSI escape sequences for terminals that don't support ANSI.
-        self.remove_ansi = kwargs.get("remove_ansi", False)
-        self.kwargs.update({"remove_ansi": self.remove_ansi})
 
         # if the system is weight based,
         # stack limit / max slots are ignored
@@ -493,7 +478,7 @@ class InventorySystem:
         inv_name = ""
         if self.item_filter is not None:
             # get all categories
-            categories = [c.before_str() + c.name + Style.RESET_ALL
+            categories = [c.name
                           for c, v in self.item_filter.filter_cats.items()
                           if v and c is not None and c is not Any]
 
@@ -517,12 +502,7 @@ class InventorySystem:
         l_end = "+-" + "-" * width + "+"
         presentation = "| " + "\n| ".join(item_lst_str)
         if presentation == "| ":
-            presentation += Fore.MAGENTA + text_ + Style.RESET_ALL
-
-        if self.remove_ansi:
-            # ANSI code regex
-            ansi_escape = re.compile(r'\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])')
-            presentation = ansi_escape.sub('', presentation)
+            presentation += "~" + text_ + "~"
 
         return "\n".join([l_end,
                           inv_name + " " * (len(l_end) - ansilen(inv_name) - 1) + "|",
@@ -648,8 +628,8 @@ ItemFilter.FILTER_ACCEPT_ALL = ItemFilter({None: True, Any: True})
 
 
 if __name__ == "__main__":
-    bows_cat = ItemCategory("Bows", fg=Fore.RED, stack_limit=1)
-    arrows_cat = ItemCategory("Arrows", fg=Fore.BLUE)
+    bows_cat = ItemCategory("Bows", stack_limit=1)
+    arrows_cat = ItemCategory("Arrows")
 
     wooden_bow = Item("Wooden Bow", category=bows_cat)
     travelers_bow = Item("Traveler's Bow", category=bows_cat)

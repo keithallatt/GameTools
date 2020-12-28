@@ -1,8 +1,5 @@
-from colorama import Fore, Back, Style, init
 from random import randrange, shuffle
 import sys
-
-init()
 
 
 class RecursionLimit:
@@ -17,7 +14,7 @@ class RecursionLimit:
         """ Set limit to new value """
         sys.setrecursionlimit(self.limit)
 
-    def __exit__(self, type, value, tb):
+    def __exit__(self, _type, value, tb):
         """ Set limit to what it was prior to entering as context """
         sys.setrecursionlimit(self.old_limit)
 
@@ -27,33 +24,20 @@ MAP_TYPE_MAZE = "map_type_maze"
 MAP_TYPE_OTHER = "map_type_other"
 
 MAP_CHARS = {
-    "default":
-        "?",
-    "MAP_CHAR_BLOCK_WALKABLE":
-        " ",
-    "MAP_CHAR_BLOCK_WALL":
-        Fore.LIGHTWHITE_EX + Back.LIGHTWHITE_EX + "#" + Style.RESET_ALL,
+    "default": "?",
+    "MAP_CHAR_BLOCK_WALKABLE": " ",
+    "MAP_CHAR_BLOCK_WALL": "#",
 }
 
 
-def set_map_char_block(block: str = "",
-                       fg: Fore = Fore.LIGHTWHITE_EX,
-                       bg: Back = Back.LIGHTWHITE_EX,
-                       clr: str = None,
-                       chr: str = "#"):
+def set_map_char_block(block: str = "", character: str = "#"):
     """ Set entry of MAP_CHARS """
     global MAP_CHARS
-
-    if clr is not None:
-        colors = {x.split("_")[0].lower(): (getattr(Fore, x), getattr(Back, x))
-                  for x in dir(Fore) if x[0] != "_" and x != "RESET"}
-
-        fg, bg = colors.get(clr.lower(), (fg, bg))
 
     if block not in MAP_CHARS.keys():
         raise MapException(None, msg="Color key non-existent")
 
-    MAP_CHARS[block] = fg + bg + chr + Style.RESET_ALL
+    MAP_CHARS[block] = character
 
 
 class MapException(Exception):
@@ -61,7 +45,7 @@ class MapException(Exception):
     def __init__(self, map_obj, msg=None):
         if msg is None:
             # Set some default useful error message
-            msg = "An error occured with Map:"
+            msg = "An error occurred with Map:"
             super(MapException, self).__init__(msg)
         self.msg = msg
         self.map_obj = map_obj
@@ -135,7 +119,10 @@ class MazeSystem(Map):
 
         s = s.strip()
 
-        return [[["MAP_CHAR_BLOCK_WALKABLE", "MAP_CHAR_BLOCK_WALL"][int(x)] for x in line] for line in s.split("\n")]
+        return [
+            [["MAP_CHAR_BLOCK_WALKABLE", "MAP_CHAR_BLOCK_WALL"][int(x)]
+             for x in line] for line in s.split("\n")
+        ]
 
 
 class BlankSystem(Map):
@@ -144,36 +131,36 @@ class BlankSystem(Map):
         """ Create a blank map """
         super().__init__(width, height, *args)
         self.map = [[args[0] if len(args) > 0 else "default"
-                     for col in range(width)] for row in range(height)]
+                     for _ in range(width)] for __ in range(height)]
 
     @classmethod
-    def draw_rect_to_map(cls, map_obj, character, xloc, yloc, w, h):
+    def draw_rect_to_map(cls, map_obj, character, x_location, y_location, w, h):
         """ draw a rectangle to the map, using a specific character """
         # TODO: make fill rect method
-        for i in range(xloc, xloc + w):
-            cls.draw_to_map(map_obj, character, i, yloc)
-            cls.draw_to_map(map_obj, character, i, yloc + h - 1)
-        for i in range(yloc, yloc + h):
-            cls.draw_to_map(map_obj, character, xloc, i)
-            cls.draw_to_map(map_obj, character, xloc + w - 1, i)
+        for i in range(x_location, x_location + w):
+            cls.draw_to_map(map_obj, character, i, y_location)
+            cls.draw_to_map(map_obj, character, i, y_location + h - 1)
+        for i in range(y_location, y_location + h):
+            cls.draw_to_map(map_obj, character, x_location, i)
+            cls.draw_to_map(map_obj, character, x_location + w - 1, i)
 
     @classmethod
-    def draw_to_map(cls, map_obj, character_key, xloc, yloc):
+    def draw_to_map(cls, map_obj, character_key, x_location, y_location):
         """ draw a cell to the map, using a specific character """
         if list(MAP_CHARS.keys()).index(character_key) != -1:
             # character is in the MAP_CHARS area
             # map_obj -> Map
             # map_obj.map -> list[list[int]]
 
-            map_obj.map[xloc][yloc] = character_key
+            map_obj.map[x_location][y_location] = character_key
 
     @classmethod
-    def draw_sub_map(cls, map_obj, sub_map, xloc, yloc):
+    def draw_sub_map(cls, map_obj, sub_map, x_location, y_location):
         """ draw a portion or all of a sub-map to the map """
         for row in range(len(sub_map.map)):
             for col in range(len(sub_map.map[row])):
                 try:
-                    map_obj.map[xloc+col][yloc+row] = sub_map.map[col][row]
+                    map_obj.map[x_location+col][y_location+row] = sub_map.map[col][row]
                 except IndexError:
                     # just continue off
                     pass
@@ -182,5 +169,5 @@ class BlankSystem(Map):
 if __name__ == "__main__":
     # TODO: Make classes more object oriented and encapsulated.
     k = 10
-    sub_map = MazeSystem(k, k)
-    print(sub_map)
+    maze_map = MazeSystem(k, k)
+    print(maze_map)
