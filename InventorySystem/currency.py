@@ -9,10 +9,9 @@ import json
 class PriceRegistry:
     """ Represents a unified list for any shopkeeper npc to use to buy items from the player """
     def __init__(self,
-                 read_file: TextIOWrapper = None,  # direct file / textio object to read from
-                 read_file_path: str = None,  # file path to open itself
-                 ):
-
+                 read_file: TextIOWrapper = None,  # direct file / text io object to read from
+                 read_file_path: str = None):  # file path to open itself
+        """ Create a price registry from file. """
         if read_file is None and read_file_path is not None:
             read_file = open(read_file_path, 'r')
         if read_file is not None and read_file_path is None:
@@ -25,11 +24,13 @@ class PriceRegistry:
         if read_file is not None:
             self.registry = json.loads(read_file.read())
 
-    def add_to_registry(self, item_name, item_price):
+    def add_to_registry(self, item_name: str, item_price: int):
+        """ Add a new entry to the registry """
         self.registry.update({item_name: item_price})
 
 
 class CurrencyException(Exception):
+    """ Currency related exception. Allows a more narrow scope for error handling. """
     def __init__(self, cause: Union[Wallet, CurrencySystem] = None, msg: str = None):
         if msg is None:
             msg = "An error occurred with Currency System:\n"
@@ -39,7 +40,10 @@ class CurrencyException(Exception):
 
 
 class Wallet:
+    """ Represents a wallet that can store amounts of a
+        denomination defined by a CurrencySystem. """
     def __init__(self, curr_sys: CurrencySystem = None, amount: int = 0):
+        """ Create a wallet with a given currency system and initial amount stored. """
         if amount < 0:
             raise CurrencyException(msg="Cannot have indebted wallet.")
         if curr_sys is None:
@@ -51,11 +55,13 @@ class Wallet:
         self.auto_stack()
 
     def __str__(self):
+        """ Return as block, where each line represents a certain denomination and the amount
+            the wallet contains of that denomination. """
         max_len = max([len(denomination) for denomination in self.curr_sys.denominations],
-                      default=0) + 1
+                      default=0)
         return "\n".join(
             [
-                denomination + ":" + " " * (max_len - len(denomination)) +
+                denomination + ": " + " " * (max_len - len(denomination)) +
                 str(self.wallet[denomination]) for denomination in self.curr_sys.denominations
             ]
         )
@@ -72,26 +78,35 @@ class Wallet:
             return False
 
     def auto_stack(self):
+        """ Stack currency from highest value to lowest value. Inverse of unstack method. """
         lowest_denomination = self.curr_sys.denominations[-1]
         total_amount = self.unstack()
 
         new_wallet = OrderedDict({
             denomination: 0 for denomination in self.curr_sys.denominations
         })
+
         current_value = 0
         for denomination in self.curr_sys.denominations:
-            amount = self.curr_sys.convert((lowest_denomination, total_amount - current_value),
-                                           denomination, whole_number=True)
-            current_value += self.curr_sys.convert((denomination, amount), lowest_denomination)
+            amount = self.curr_sys.convert(lowest_denomination,
+                                           total_amount - current_value,
+                                           denomination,
+                                           whole_number=True)
+            current_value += self.curr_sys.convert(denomination,
+                                                   amount,
+                                                   lowest_denomination)
             new_wallet[denomination] = amount
 
         self.wallet = new_wallet
 
     def unstack(self):
+        """ Return the amount this wallet is worth in it's lowest valued denomination.
+            Inverse of auto_stack method."""
         lowest_denomination = self.curr_sys.denominations[-1]
         amount = 0
         for denomination in self.curr_sys.denominations:
-            amount += self.curr_sys.convert((denomination, self.wallet[denomination]),
+            amount += self.curr_sys.convert(denomination,
+                                            self.wallet[denomination],
                                             lowest_denomination)
 
         return amount
@@ -114,25 +129,25 @@ class Wallet:
     def __le__(self, other):
         return self.unstack().__le__(other.unstack())
 
+    def __eq__(self, other):
+        return self.unstack().__eq__(other.unstack())
+
+    def __ne__(self, other):
+        return self.unstack().__ne__(other.unstack())
+
 
 class CurrencySystem:
     """ Represents a Currency system, like Gold, Silver and Copper pieces,
         where 1 gold = 7 silver, 1 silver = 13 copper etc. """
     def __init__(self, relative_denominations: OrderedDict[str, int] = None):
-        # requires that relative_denominations is of the form
-        # {
-        #   name1: 1,
-        #   name2: int(convert from name1 to name2)
-        #   name3: int(convert from name2 to name3)
-        # }
-
-        # therefore for the example above, we have
-        # {
-        #   "Gold": 1,
-        #   "Silver": 7,
-        #   "Copper": 13
-        # }
-
+        """
+        For all denominations other than the highest valued denomination (first entry),
+        the value associated with that key is the amount of that denomination that is
+        equivalent in worth the next most valued denomination.
+        I.e. 1 * key(denomination[i])
+             is equivalent to
+             value(denomination[i+1]) * key(denomination[i+1])
+        """
         if relative_denominations is None:
             self.denominations = ["Gold"]
             self.relative_denominations = {"Gold": 1}
@@ -140,24 +155,35 @@ class CurrencySystem:
             self.denominations = list(relative_denominations.keys())
             self.relative_denominations = relative_denominations
 
-    def convert(self, currency1: tuple[str, int], denomination2: str, whole_number=False):
-        denomination1, amount = currency1
+        if self.relative_denominations[list(self.relative_denominations.keys())[0]] != 1:
+            raise CurrencyException(msg="Cannot have most valued denomination worth != 1",
+                                    cause=self)
+
+    def convert(self, denomination1: str, amount: int, denomination2: str, whole_number=False):
+        """ Convert the amount of denomination1 into the relative amount of denomination 2.
+            If whole_number is true, then round the value down to the largest integer less
+            than the true amount. """
+        # if the denominations are the same, then don't make a conversion
+        if denomination1 == denomination2:
+            return amount
+
         ind1 = list(self.relative_denominations.keys()).index(denomination1)
         ind2 = list(self.relative_denominations.keys()).index(denomination2)
 
-        if ind1 == ind2:
-            return amount
-
+        # if denomination1 is a more valuable denomination
         while ind1 < ind2:
             ind1 += 1
             amount *= self.relative_denominations[self.denominations[ind1]]
 
+        # if denomination2 is a more valuable denomination
         while ind1 > ind2:
             amount /= self.relative_denominations[self.denominations[ind1]]
             ind1 -= 1
 
+        # round if necessary
         if whole_number:
             return math.floor(amount)
+
         return amount
 
 

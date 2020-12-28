@@ -5,7 +5,9 @@ import MapSystem.map as map_sys
 
 
 class MapTest(TestCase):
+    """ MapSystem module test cases """
     def test_map_copy(self):
+        """ Test if copying map works using draw_sub_map """
         for s in range(2, 6):
             for k in range(100):
                 map_outer = BlankSystem(20, 20)
@@ -19,6 +21,7 @@ class MapTest(TestCase):
                             self.assertEqual(map_outer.map[i][j], map_inner.map[i][j])
 
     def test_map_exception(self):
+        """ Ensure exception raised for obviously wrong commands """
         # test setting to non-existent color key
         with self.assertRaises(MapException) as context:
             map_sys.set_map_char_block(clr="ObviouslyWrong")

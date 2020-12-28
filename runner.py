@@ -19,6 +19,11 @@ class_tests = [CombatTest, InventoryTest, CurrencyTest, MapTest, NPCTest, Player
 
 
 def statistics():
+    """ Generate statistics about the project.
+         - Number of files scanned,
+         - Number of lines of text,
+         - Number of source lines of code
+    """
     def remove_comments_and_docstrings(source):
         """
         Modified slightly from:
@@ -101,6 +106,8 @@ def statistics():
     working_dir = os.getcwd() + os.sep
 
     def add_module_path(sd):
+        """ Provided sd is a folder within the current working directory, and that folder is
+            a Python3+ module, """
         return working_dir + sd + os.sep + "__init__.py"
 
     folders = [

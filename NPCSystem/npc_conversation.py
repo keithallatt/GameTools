@@ -1,13 +1,16 @@
 
 class NPC:
+    """ Represents a generic Non Player Character """
     def __init__(self, name, **kwargs):
+        """ Create a basic npc with a rudimentary conversation system """
         self.name = name
         self.conversation = kwargs.get("conversation", [("...", {})])
 
-        self.goodbye = "Goodbye!"
-        self.confusion = "Sorry, I don't know what you mean."
+        self.goodbye = kwargs.get("goodbye", "Goodbye!")
+        self.confusion = kwargs.get("confusion", "Sorry, I don't know what you mean.")
 
     def talk(self):
+        """ Start a conversation with the NPC """
         line = 0
 
         while True:
@@ -37,4 +40,5 @@ class NPC:
 
 
 if __name__ == "__main__":
-    pass
+    npc = NPC("Mary")
+    npc.talk()

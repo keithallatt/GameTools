@@ -1,11 +1,13 @@
-from NPCSystem.npc_conversation import *
-from InventorySystem.inventory import *
+from NPCSystem.npc_conversation import NPC
+from InventorySystem.inventory import ItemFilter, Item, InventorySystem
 
 
 class ShopKeeper(NPC):
+    """ A vendor or shop keeper, used to sell the player items, and buy unwanted stock """
     def __init__(self, name, item_list: list[Item]):
+        """ Build a shop keeper from a name and a list of items they have """
         super().__init__(name)
-        self.inv = InventorySystem(remove_on_0=False, item_filter=FILTER_ACCEPT_ALL)
+        self.inv = InventorySystem(remove_on_0=False, item_filter=ItemFilter.FILTER_ACCEPT_ALL)
 
         for item in item_list:
             self.inv += item
@@ -19,12 +21,13 @@ class ShopKeeper(NPC):
         ]
 
     def see_stock(self):
+        """ Allow the player to see the items in the shop """
         shop_repr = self.inv.__str__()
         shop_name = "< %s's Shop >" % self.name
         return shop_name + "\n" + shop_repr
 
     def buy_stock(self):
-        response = None
+        """ Set up the player to buy items """
         while True:
             try:
                 response = input("What would you like? (1-%d)\n>> " %
@@ -36,7 +39,6 @@ class ShopKeeper(NPC):
 
         item = self.inv.get_slots()[response].copy(quantity=1)
 
-        number = None
         while True:
             try:
                 number = input(f"How many {item.name.lower()}s would you like?\n>> ")
@@ -57,16 +59,18 @@ class ShopKeeper(NPC):
             confirmation = input(">> ")
 
     def sell_item(self, item_quantified):
+        """ Set up the player to sell items """
+
         pass
+
 
 if __name__ == "__main__":
     it_lst = [
-        Item("Apple", quantity=8, price=5),
-        Item("Orange", quantity=15, price=7),
-        Item("Banana", quantity=10, price=18)
+        8 * Item("Apple", price=5),
+        10 * Item("Orange", price=7),
+        15 * Item("Banana", price=18)
     ]
 
-    shopkeep = ShopKeeper("Moni Spender", it_lst)
+    shop_keep = ShopKeeper("Fruit Vendor", it_lst)
 
-    #shopkeep.talk()
-
+    shop_keep.talk()

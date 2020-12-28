@@ -2,19 +2,25 @@ from colorama import Fore, Back, Style, init
 from random import randrange, shuffle
 import sys
 
+init()
+
 
 class RecursionLimit:
+    """ Set the recursion limit higher if need be.
+        If set too high, errors at the C level could occur """
     def __init__(self, limit):
+        """ set limit and remember old limit (typically 1000) """
         self.limit = limit
         self.old_limit = sys.getrecursionlimit()
 
     def __enter__(self):
+        """ Set limit to new value """
         sys.setrecursionlimit(self.limit)
 
     def __exit__(self, type, value, tb):
+        """ Set limit to what it was prior to entering as context """
         sys.setrecursionlimit(self.old_limit)
 
-init()
 
 MAP_TYPE_BLANK = "map_type_blank"
 MAP_TYPE_MAZE = "map_type_maze"
@@ -22,7 +28,7 @@ MAP_TYPE_OTHER = "map_type_other"
 
 MAP_CHARS = {
     "default":
-        " ",
+        "?",
     "MAP_CHAR_BLOCK_WALKABLE":
         " ",
     "MAP_CHAR_BLOCK_WALL":
@@ -35,11 +41,12 @@ def set_map_char_block(block: str = "",
                        bg: Back = Back.LIGHTWHITE_EX,
                        clr: str = None,
                        chr: str = "#"):
+    """ Set entry of MAP_CHARS """
     global MAP_CHARS
 
     if clr is not None:
         colors = {x.split("_")[0].lower(): (getattr(Fore, x), getattr(Back, x))
-                       for x in dir(Fore) if x[0] != "_" and x != "RESET"}
+                  for x in dir(Fore) if x[0] != "_" and x != "RESET"}
 
         fg, bg = colors.get(clr.lower(), (fg, bg))
 
@@ -50,6 +57,7 @@ def set_map_char_block(block: str = "",
 
 
 class MapException(Exception):
+    """ General Map exception for narrower exception handing cases """
     def __init__(self, map_obj, msg=None):
         if msg is None:
             # Set some default useful error message
@@ -60,6 +68,7 @@ class MapException(Exception):
 
 
 class Map:
+    """ General Map type object """
     def __init__(self, width, height, *args):
         self.width = width
         self.height = height
@@ -67,10 +76,17 @@ class Map:
         self.args = args
         self.map = None
 
+    def __str__(self):
+        """ Draw the map """
+        return "\n".join(
+            ["".join(
+                [MAP_CHARS[x] * 2 for x in line]
+            ) for line in self.map]
+        )
+
 
 class MazeSystem(Map):
     """ A Maze map of size :arg width / :arg height """
-
     def __init__(self, width, height, *args):
         super().__init__(width * 2 + 1, height * 2 + 1, *args)
         limit = 1000
@@ -85,7 +101,7 @@ class MazeSystem(Map):
             raise MapException("Failed Initialization", msg="Hit Upper Recursion Limit of 10000.")
 
     def _gen_maze(self, rl=1000):
-        """ Recursion Limit 5000 is min to generate 50 by 50 maze most of the time """
+        """ Generate maze with a recursion limit rl """
         w, h = self.width // 2, self.height // 2
 
         vis = [[0] * w + [1] for _ in range(h)] + [[1] * (w + 1)]
@@ -121,29 +137,19 @@ class MazeSystem(Map):
 
         return [[["MAP_CHAR_BLOCK_WALKABLE", "MAP_CHAR_BLOCK_WALL"][int(x)] for x in line] for line in s.split("\n")]
 
-    def __str__(self):
-        return "\n".join(
-            ["".join(
-                [MAP_CHARS[x] * 2 for x in line]
-            ) for line in self.map]
-        )
-
 
 class BlankSystem(Map):
+    """ Represents a blank map, fully customizable """
     def __init__(self, width, height, *args):
+        """ Create a blank map """
         super().__init__(width, height, *args)
         self.map = [[args[0] if len(args) > 0 else "default"
                      for col in range(width)] for row in range(height)]
 
-    def __str__(self):
-        return "\n".join(
-            ["".join(
-                [MAP_CHARS[x] * 2 for x in line]
-            ) for line in self.map]
-        )
-
     @classmethod
     def draw_rect_to_map(cls, map_obj, character, xloc, yloc, w, h):
+        """ draw a rectangle to the map, using a specific character """
+        # TODO: make fill rect method
         for i in range(xloc, xloc + w):
             cls.draw_to_map(map_obj, character, i, yloc)
             cls.draw_to_map(map_obj, character, i, yloc + h - 1)
@@ -153,6 +159,7 @@ class BlankSystem(Map):
 
     @classmethod
     def draw_to_map(cls, map_obj, character_key, xloc, yloc):
+        """ draw a cell to the map, using a specific character """
         if list(MAP_CHARS.keys()).index(character_key) != -1:
             # character is in the MAP_CHARS area
             # map_obj -> Map
@@ -162,6 +169,7 @@ class BlankSystem(Map):
 
     @classmethod
     def draw_sub_map(cls, map_obj, sub_map, xloc, yloc):
+        """ draw a portion or all of a sub-map to the map """
         for row in range(len(sub_map.map)):
             for col in range(len(sub_map.map[row])):
                 try:
@@ -172,6 +180,7 @@ class BlankSystem(Map):
 
 
 if __name__ == "__main__":
+    # TODO: Make classes more object oriented and encapsulated.
     k = 10
     sub_map = MazeSystem(k, k)
     print(sub_map)

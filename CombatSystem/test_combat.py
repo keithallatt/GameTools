@@ -5,4 +5,5 @@ import CombatSystem.combat as combat_sys
 
 
 class CombatTest(TestCase):
+    """ CombatSystem module test cases """
     pass

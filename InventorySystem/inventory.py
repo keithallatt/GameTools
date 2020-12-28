@@ -17,27 +17,37 @@ init()
 class Item:
     """ An item used in an inventory system """
     def __init__(self, name: str, **kwargs):
-        self.kwargs = kwargs
+        """ Create an item with a name, and any one of the following keyword arguments. """
         self.quantity = kwargs.get("quantity", 1)
+        kwargs.update({"quantity": self.quantity})
 
         self.stack_limit = kwargs.get("stack_limit", None)
+        kwargs.update({"stack_limit": self.stack_limit})
         self.max_slots = kwargs.get("max_slots", None)
+        kwargs.update({"max_slots": self.max_slots})
 
         self.color = kwargs.get("color", None)
+        kwargs.update({"color": self.color})
         self.category = kwargs.get("category", None)
+        kwargs.update({"category": self.category})
         self.price = kwargs.get("price", None)
         if type(self.price) == int:
             # if provided a number:
             self.price = Wallet(amount=self.price)
+        kwargs.update({"price": self.price})
 
         self.unit_weight = kwargs.get("unit_weight", None)
+        kwargs.update({"unit_weight": self.unit_weight})
 
         if self.unit_weight is not None and self.unit_weight <= 0:
             raise InventoryException(self, msg="Item with non-positive weight defined.")
 
         self.name = " ".join([n.capitalize() for n in name.split(" ")])
 
+        self.kwargs = kwargs
+
     def __str__(self):
+        """ Join all provided fields as space separated list of fields."""
         fields = self.fields()
         fields = list(filter(lambda x: x is not None, fields))
         return " ".join(fields)
@@ -46,24 +56,29 @@ class Item:
         """ Equal items have the same name, may only differ by quantity """
         if other is None:
             return False
-        if self.category != other.category:
-            return False
-        if self.color != other.color:
-            return False
-        if self.price != other.price:
-            return False
-        if self.unit_weight != other.unit_weight:
-            return False
+
+        for kwarg in self.kwargs.keys():
+            if kwarg != 'quantity':
+                if self.kwargs[kwarg] != other.kwargs[kwarg]:
+                    return False
+
         return self.name == other.name
 
+    def __ne__(self, other):
+        """ must be defined, much like rmul """
+        return not self.__eq__(other)
+
     def __mul__(self, other: int):
+        """ Multiplication by integer multiplies quantity """
         return self.copy(quantity=self.quantity * other)
 
     def __rmul__(self, other):
+        """ Multiplication between integer and item is commutative """
         return self.__mul__(other)
 
     def __add__(self, other: Item):
-        if self.name != other.name:
+        """ Add items in different stacks together """
+        if self != other:
             raise InventoryException(self, msg="Item addition on different items")
         return self.copy(quantity=self.quantity + other.quantity)
 
@@ -74,7 +89,7 @@ class Item:
         if len(item_list) == 0:
             return []
 
-        # assumes all are formatted the same
+        # assumes all are formatted the same (fields() should give same length lists)
         item_strings = [[field.strip() + ("  " if ansilen(field) > 0 else "")
                          for field in it.fields()] for it in item_list]
 
@@ -89,6 +104,8 @@ class Item:
         return item_strings
 
     def fields(self):
+        """ Return a list of fields required to display the item as part of
+            an inventory system, including ansi colors around particular fields. """
         return [
             (self.color if self.color is not None else self.category.before_str()
              if self.category is not None else "") + self.name + Style.RESET_ALL,
@@ -110,6 +127,7 @@ class Item:
         return Item(self.name, **kw)
 
     def add_self_to_registry(self, registry: PriceRegistry):
+        """ Add this item to the price registry using the current name and price """
         registry.add_to_registry(self.name, self.price.unstack())
 
 
@@ -117,6 +135,8 @@ class ItemCategory:
     """ Category for items. Each item can belong to multiple categories, but it is
         recommended that only one be used. """
     def __init__(self, name: str, fg: Fore = Fore.RESET, bg: Back = Back.RESET, **kwargs):
+        """ Define a new category. Can include foreground and background colors,
+            as well as stack limits or max slot capacities. """
         self.name = name
         self.fg = fg
         self.bg = bg
@@ -125,9 +145,11 @@ class ItemCategory:
         self.max_slots = kwargs.get("max_slots", None)
 
     def before_str(self):
+        """ Used to color the text using ansi, comes before the category name. """
         return self.fg + self.bg
 
     def __str__(self):
+        """ Return ANSI free representation of the category """
         return self.name + " Category"
 
     def __eq__(self, other):
@@ -137,10 +159,16 @@ class ItemCategory:
         return self.name == other.name and self.fg == other.fg and self.bg == other.bg
 
     def __hash__(self):
-        return hash(str(self.name + self.fg + self.bg))
+        """ Return hash of string representation with ANSI escape codes. """
+        return hash(str(self.before_str()+self.name))
 
 
 class ItemFilter:
+    """ Filter for Inventory Systems. Default filter is a blanket block filter,  """
+
+    # Blanket accept filter reference.
+    FILTER_ACCEPT_ALL = None
+
     def __init__(self, filter_cats: Dict[Union[ItemCategory, None, Any], bool] = None):
         """ None key in filter_cats corresponds to default behaviour. """
         self.filter_cats = {
@@ -150,14 +178,17 @@ class ItemFilter:
             self.filter_cats.update(filter_cats)
 
     def accept(self, item: Item):
+        """ Returns whether the described item filter accepts the item based on its category """
         return self.filter_cats.get(item.category,
                                     self.filter_cats[None if item.category is None else Any])
 
     def accepts(self, item_category: ItemCategory):
+        """ Returns whether the item filter accepts any item of the given category """
         return self.filter_cats.get(item_category,
                                     self.filter_cats[None if item_category is None else Any])
 
     def get_categories(self):
+        """ Return the set of categories for which this filter will accept """
         cats = []
         for k, v in self.filter_cats.items():
             if k is not Any:
@@ -166,6 +197,7 @@ class ItemFilter:
         return cats
 
     def get_restricted(self):
+        """ Return the set of categories for which this filter will deny """
         cats = []
         for k, v in self.filter_cats.items():
             if k is not Any:
@@ -174,17 +206,26 @@ class ItemFilter:
         return cats
 
     def is_generalized(self):
+        """ Return whether this filter accepts items with no category (generalized item) """
         return self.filter_cats[None]
 
     def is_categorized(self):
+        """ Return whether this filter will accept any item that is categorized """
         return self.filter_cats[Any]
 
     def is_all_encompassing(self):
+        """ Return if this filter accepts all items (all-encompassing) """
         return self.filter_cats[None] and self.filter_cats[Any] and \
-               False not in list(self.filter_cats.values())
+            False not in list(self.filter_cats.values())
 
     @classmethod
     def generate_filters(cls, filter_list: List[List[Union[ItemCategory, None]]]):
+        """ Generate a list of filters such that for each element of filter_list,
+            there is a filter such that that filter accepts all item categories in
+            that particular element. Complete the set of filters that accepts all
+            items not accepted by any other filter.
+            This has the property that every item is accepted by exactly one filter
+            in the generated list. """
         all_cats = sum(filter_list, start=[])
         all_cats_set = set(all_cats)
         if len(all_cats) != len(all_cats_set):
@@ -201,11 +242,13 @@ class ItemFilter:
         return [ItemFilter(f) for f in defined_filters]
 
     def __str__(self):
+        """ Return the string representation as a set of category names / Any / None
+            and the corresponding acceptance or denial of items of that type. """
         return str({str(k): v for k, v in self.filter_cats.items()})
 
 
 class InventoryException(Exception):
-    """Basic exception for errors raised by the inventory system"""
+    """ Basic exception for errors raised by the inventory system """
     def __init__(self, inventory: Union[InventorySystem, Item, None], msg=None):
         if msg is None:
             msg = "An error occurred with Inventory:\n%s" % inventory.pprint_inv()
@@ -217,6 +260,8 @@ class InventoryException(Exception):
 class InventorySystem:
     """ A flexible inventory system """
     def __init__(self, **kwargs):
+        """ Generate an inventory system (inventory page)
+            based on the following keyword arguments """
         self.kwargs = kwargs
 
         # Maximum number of inventory slots.
@@ -291,14 +336,17 @@ class InventorySystem:
                 # if need new stack
                 self._contents.append(it)
         else:
+            # if the system is stack and slot based.
             stack_limit = it.stack_limit
             if stack_limit is None and it.category is not None:
                 stack_limit = it.category.stack_limit
             if stack_limit is None:
                 stack_limit = self.stack_limit
 
-            # if it is slot based / stack based
             if it in self._contents and not new_slot:
+                # if the item being added exists in the inventory page but we have
+                # not specified to create a new stack (say, because of a stack
+                # limit being hit)
                 in_lst = self._get_items(self._contents, it)
                 to_add = it.quantity
                 # while we can add more items to the stacks already in the inventory
@@ -316,17 +364,23 @@ class InventorySystem:
                     # add new slot
                     self._add_item(it.copy(quantity=to_add), new_slot=True)
             else:
+                # either the item doesn't already exist or we are specifically adding a new stack
                 # max slot conditions
+
+                # make sure that the number of slots used in the inventory is not at it's maximum
                 msc_inv_sys = self.max_slots is None or \
                                               len(self._contents) < self.max_slots
+                # make sure the number of slots occupied by items of the same category type
+                # is less than the category's max slot limit
                 msc_cat = it.category is None or it.category.max_slots is None or \
                     len(list(filter(lambda x: x.category == it.category,
                                     self._contents))) < it.category.max_slots
+                # make sure the number of slots occupied by the same item is less than the items
+                # max slot limit.
                 msc_item = it.max_slots is None or \
                     len(list(filter(lambda x: x.name == it.name, self._contents))) < it.max_slots
 
                 if msc_inv_sys and msc_cat and msc_item:
-
                     # adding new stacks.
                     to_add = it.quantity
 
@@ -379,7 +433,7 @@ class InventorySystem:
         return pprint.pformat(json.loads(self.serialize_json_pickle()))
 
     def serialize_json_pickle(self):
-        """ Serialize inventory into json """
+        """ Serialize inventory into JSON. Not fully functional for nested custom classes. """
         return jsonpickle.encode(self, make_refs=False)
 
     def set_stack_limit(self, stack_limit):
@@ -406,7 +460,7 @@ class InventorySystem:
         return len(self._contents)
 
     def get_slots(self):
-        """ return a copy of the contents """
+        """ Return a copy of the contents """
         return self._contents[::]
 
     def __add__(self, other: Union[Item, list[Item]]):
@@ -431,7 +485,6 @@ class InventorySystem:
 
     def __str__(self):
         """ Display inventory as a list of items with their parameters. """
-
         self._contents.sort(key=lambda item: item.quantity, reverse=True)
         self._contents.sort(key=lambda item: item.name)
         self._contents.sort(key=lambda item: item.name if item.category is None
@@ -481,12 +534,14 @@ class InventorySystem:
 class Inventory:
     """ Collection of Inventory Systems. """
     def __init__(self, **kwargs):
+        """ Create an inventory (collection of inventory pages) """
         self.pages = list(kwargs.get("pages", [
-            InventorySystem(item_filter=FILTER_ACCEPT_ALL)
+            InventorySystem(item_filter=ItemFilter.FILTER_ACCEPT_ALL)
         ]))
         self.all_pages_in_str = True
         self.page_display = 0
 
+        # all categories accepted by all pages of the inventory.
         all_cats = sum([
             inv_sys.item_filter.get_categories() for inv_sys in self.pages
         ], start=[])
@@ -498,28 +553,33 @@ class Inventory:
             warnings.warn("Multiple pages accept similar items.")
 
         if len([inv_sys for inv_sys in self.pages if inv_sys.item_filter.is_generalized()]) > 1:
+            # at least 2 pages accept generalized items
             warnings.warn("Multiple pages are generalized.")
 
         if len([inv_sys for inv_sys in self.pages if inv_sys.item_filter.is_categorized()]) > 1:
+            # at least 2 pages accept any categorized items
             warnings.warn("Multiple pages are categorized.")
 
         if len([inv_sys for inv_sys in self.pages
                 if inv_sys.item_filter.is_all_encompassing()]) >= 1 and len(self.pages) > 1:
+            # all encompassing page exists while other pages exist as well.
             warnings.warn("Multiple pages defined with an all encompassing page.")
 
         for inv_sys in [inv_sys for inv_sys in self.pages if inv_sys.item_filter.is_categorized()]:
             restrictions = inv_sys.item_filter.get_restricted()
-
             inner_break = False
             for cat in all_cats_set:
                 if cat is not None and cat not in restrictions:
+                    # two categories accept the same kinds of items (or partial overlap)
                     warnings.warn(f"Inventory System does not restrict other systems' acceptances.")
                     inner_break = True
                     break
             if inner_break:
                 break
 
-        # last check to ensure nothing has gone wrong
+        # last check to ensure nothing has gone wrong (blanket warning)
+        # this is in place in case the above more specific cases don't catch an issue
+        # in this case, debugging the issue is more difficult.
         for category in list(all_cats_set) + [ItemCategory("random:"+str(random.random()))]:
             num_accepting = 0
             for inv_sys in self.pages:
@@ -530,8 +590,11 @@ class Inventory:
                 warnings.warn(f"Multiple inventory systems accept category {category}.")
 
     def __str__(self):
+        """ Return the string representation of an inventory (can display multiple
+            pages or a single page at a time."""
         if not self.all_pages_in_str:
-            return str(self.pages[self.page_display])
+            return str(self.pages[self.page_display]) + "\n " + \
+                   str(self.page_display+1) + "/" + str(len(self.pages))
 
         max_lines = max([len(str(page).split("\n")) for page in self.pages], default=0)
 
@@ -549,6 +612,7 @@ class Inventory:
         ])
 
     def __add__(self, other: Union[List[Item], Item]):
+        """ Add a single item or list of items to the inventory """
         inv_copy = copy.deepcopy(self)
         if type(other) == Item:
             # add a single item
@@ -558,10 +622,16 @@ class Inventory:
             for i in range(len(inv_copy.pages)):
                 if inv_copy.pages[i].item_filter.accepts(it_cat):
                     inv_copy.pages[i] += it
-                    continue
+
+                    # TODO: allow multiple pages and proper item addition to different systems.
+                    #  - can probably accomplish using additional method in InventorySystem
+                    #    and a try/catch which catches InventoryExceptions on +=
+
+                    break
         return inv_copy
 
     def __sub__(self, other: Union[List[Item], Item]):
+        """ Remove items from the inventory """
         inv_copy = copy.deepcopy(self)
         if type(other) == Item:
             # remove a single item
@@ -574,7 +644,7 @@ class Inventory:
         return inv_copy
 
 
-FILTER_ACCEPT_ALL = ItemFilter({None: True, Any: True})
+ItemFilter.FILTER_ACCEPT_ALL = ItemFilter({None: True, Any: True})
 
 
 if __name__ == "__main__":
@@ -585,7 +655,7 @@ if __name__ == "__main__":
     travelers_bow = Item("Traveler's Bow", category=bows_cat)
     knights_bow = Item("Knight's Bow", category=bows_cat)
 
-    arrow = Item("Arrow", category=arrows_cat, price=1)
+    arrow = Item("Arrow", category=arrows_cat)
     fire_arrow = Item("Fire Arrow", category=arrows_cat)
     ice_arrow = Item("Ice Arrow", category=arrows_cat)
     shock_arrow = Item("Shock Arrow", category=arrows_cat)

@@ -5,4 +5,5 @@ import PlayerSystem.player as player_sys
 
 
 class PlayerTest(TestCase):
+    """ PlayerSystem module test cases """
     pass

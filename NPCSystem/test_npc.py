@@ -5,5 +5,6 @@ import NPCSystem.npc_types
 
 
 class NPCTest(TestCase):
+    """ NPCSystem module test cases """
     pass
 

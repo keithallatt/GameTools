@@ -9,27 +9,41 @@ from typing import Type
 
 
 class PointSystem:
+    """ Represents a generalized point system.
+        Can be used for experience (ExpSys)
+        or health points (HealthSys)
+        or magic, stamina, etc."""
     def __init__(self, name: str):
+        """ Generate the point system by name and default parameters """
         self.point_system_name = name
         self.level = 0
         self.exp_per_level_coefficients = np.array([1.])
 
-    def limit_for_level(self, level: int):
+    def limit_for_level(self, level: int, cumulative: bool = False):
+        """ Map level to a value which will specify the limit for the given level.
+            If cumulative is true, then the return value should be the new limit.
+            If cumulative is false, then the return value should be the limit increase."""
         pass
 
     def gain_points(self, points: int) -> int:
+        """ Increase the count of points the point system is tracking """
         pass
 
-    def display_bar(self, bar=False, bar_length: int = 20):
+    def display_bar(self, bar_length: int = 20):
+        """ Display the point system as a bar being filled """
         pass
 
     def set_according_to_level(self, level: int):
+        """ Set the point systems maximum point limit according to the level. """
         pass
 
 
 class ExpSys(PointSystem):
+    """ An Experience Point System for gaining experience to level up a character """
     def __init__(self, level: int = 1, exp: int = 0,
                  exp_per_level_coefficients: np.array = None):
+        """ Create an experience system with default limit function
+            exp_per_level(L) = 1.0 + 1.003L - 0.2L^2 + 0.8L^3 """
         super().__init__("Experience")
         self.exp = exp
         self.level = level
@@ -40,19 +54,28 @@ class ExpSys(PointSystem):
         self.max_exp = self.limit_for_level(level)
 
     def set_according_to_level(self, level: int):
+        """ Set the new level and calculate the new max limit """
         self.level = level
         self.max_exp = self.limit_for_level(level)
 
-    def limit_for_level(self, level: int):
-        coefficients = self.exp_per_level_coefficients
-        level_arr = np.repeat(level, coefficients.shape[0])
-        exponents = np.arange(0, coefficients.shape[0])
-        return int(np.round(np.sum(coefficients * (level_arr ** exponents))))
+    def limit_for_level(self, level: int, cumulative: bool = False):
+        """ Calculate the new limit based on the level """
+        if cumulative:
+            coefficients = self.exp_per_level_coefficients
+            level_arr = np.repeat(level, coefficients.shape[0])
+            exponents = np.arange(0, coefficients.shape[0])
+            return int(np.round(np.sum(coefficients * (level_arr ** exponents))))
+        else:
+            # temporary
+            return self.limit_for_level(level, cumulative=True) - \
+                   self.limit_for_level(level-1, cumulative=True)
 
     def __str__(self):
+        """ Return as a ratio of current / max experience points """
         return f"{self.exp} / {self.max_exp} EXP"
 
     def gain_points(self, points):
+        """ Gain experience points, and level up as necessary """
         self.exp += points
         while self.exp >= self.max_exp:
             self.exp -= self.max_exp
@@ -60,19 +83,20 @@ class ExpSys(PointSystem):
 
         return self.level
 
-    def display_bar(self, bar=False, bar_length: int = 20):
+    def display_bar(self, bar_length: int = 20):
+        """ Display experience points as a bar being filled """
         if self.exp is None or self.max_exp is None:
             return ""
-        if bar:
-            return "|" + Fore.YELLOW + Back.YELLOW + \
-                   "#" * (bar_length * self.exp // self.max_exp) + Style.RESET_ALL + \
-                   " " * (bar_length - (bar_length * self.exp // self.max_exp)) + "|"
-        else:
-            return self.__str__()
+        return "|" + Fore.YELLOW + Back.YELLOW + \
+               "#" * (bar_length * self.exp // self.max_exp) + Style.RESET_ALL + \
+               " " * (bar_length - (bar_length * self.exp // self.max_exp)) + "|"
 
 
 class HealthSys(PointSystem):
+    """ Health Point system to determine the overall health of an NPC, player or enemy """
     def __init__(self, level: int = 1, hp_per_level_coefficients: np.array = None):
+        """ Create an health point system with default limit function
+            hp_per_level(L) = 8.0 + 1.0L + 0.5L^2 """
         super().__init__("Health")
         self.hp_per_level_coefficients = hp_per_level_coefficients
         if hp_per_level_coefficients is None:
@@ -81,48 +105,54 @@ class HealthSys(PointSystem):
         self.hp = self.max_hp = self.limit_for_level(level)
 
     def set_according_to_level(self, level: int):
+        """ Set the new level and calculate the new max limit """
         self.level = level
         hp_up = self.limit_for_level(level) - self.max_hp
         self.hp += hp_up
         self.max_hp += hp_up
 
-    def limit_for_level(self, level: int):
-        coefficients = self.hp_per_level_coefficients
-        level_arr = np.repeat(level, coefficients.shape[0])
-        exponents = np.arange(0, coefficients.shape[0])
-        return int(np.round(np.sum(coefficients * (level_arr ** exponents))))
+    def limit_for_level(self, level: int, cumulative: bool = False):
+        """ Calculate the new limit based on the level """
+        if cumulative:
+            coefficients = self.hp_per_level_coefficients
+            level_arr = np.repeat(level, coefficients.shape[0])
+            exponents = np.arange(0, coefficients.shape[0])
+            return int(np.round(np.sum(coefficients * (level_arr ** exponents))))
+        else:
+            return self.limit_for_level(level, cumulative=True) - \
+                   self.limit_for_level(level-1, cumulative=True)
 
     def __str__(self):
+        """ Return as a ratio of current / max hit points """
         return f"{self.hp} / {self.max_hp} HP"
 
     def gain_points(self, points):
+        """ Gain hit points, and cap at max / 0 as necessary """
         self.hp += points
         if self.hp > self.max_hp:
             self.hp = self.max_hp
         if self.hp < 0:
             self.hp = 0
 
-    def display_bar(self, bar=False, bar_length: int = 20):
+    def display_bar(self, bar_length: int = 20):
+        """ Display experience points as a bar being filled """
         if self.hp is None or self.max_hp is None:
             return ""
-        if bar:
-
-            ratio = self.hp / self.max_hp
-            if ratio <= 0.2:
-                color = Fore.RED + Back.RED
-            elif ratio <= 0.5:
-                color = Fore.LIGHTYELLOW_EX + Back.LIGHTYELLOW_EX
-            else:
-                color = Fore.GREEN + Back.GREEN
-
-            return "|" + color + color + \
-                   "#" * math.ceil(bar_length * self.hp / self.max_hp) + Style.RESET_ALL + \
-                   " " * (bar_length - math.ceil(bar_length * self.hp / self.max_hp)) + "|"
+        ratio = self.hp / self.max_hp
+        if ratio <= 0.2:
+            color = Fore.RED + Back.RED
+        elif ratio <= 0.5:
+            color = Fore.LIGHTYELLOW_EX + Back.LIGHTYELLOW_EX
         else:
-            return self.__str__()
+            color = Fore.GREEN + Back.GREEN
+
+        return "|" + color + color + \
+               "#" * math.ceil(bar_length * self.hp / self.max_hp) + Style.RESET_ALL + \
+               " " * (bar_length - math.ceil(bar_length * self.hp / self.max_hp)) + "|"
 
 
 class PlayerException(Exception):
+    """ Basic exception for errors raised by the player / point system """
     def __init__(self, msg: str = None):
         super().__init__(msg)
         self.msg = msg
@@ -140,6 +170,7 @@ class PlayerSystem:
                  currency_system: CurrencySystem = None,
                  init_wallet: Wallet = None,
                  init_amount: int = 0):
+        """ Create a player with many default parameters """
         self.point_systems = point_systems
         experience_systems = [
                p_sys for p_sys in point_systems if type(p_sys) is ExpSys
@@ -170,6 +201,7 @@ class PlayerSystem:
             self.wallet = init_wallet
 
     def __str__(self):
+        """ Represent player using the different point systems associated with the player """
         level = None
         if self.exp_sys is not None:
             level = self.exp_sys.level
@@ -192,6 +224,7 @@ class PlayerSystem:
         return str_repr
 
     def _gain_points(self, points: int, system_type: Type):
+        """ Add points to the point system of type system_type """
         if not issubclass(system_type, PointSystem):
             raise PlayerException("Method called with system type not inherited from PointSystem")
 
@@ -208,6 +241,9 @@ class PlayerSystem:
             raise PlayerException("Gain Points called with system type not included in player")
 
     def _add_to_inventory(self, item: Item = None, payment: Wallet = None):
+        """ Add an item to the players inventory. If payment is not None, then
+            the player is paying for an item, if payment is None, then the item
+            is being collected / picked up """
         if payment is not None:
             # need to ensure that the user has enough payment.
             # need this wallet >= payment
@@ -228,6 +264,9 @@ class PlayerSystem:
             self.inventory += item
 
     def _remove_from_inventory(self, item: Item = None, payment: Wallet = None):
+        """ Remove an item to the players inventory. If payment is not None, then
+            the player is getting paid for the item, if payment is None, then the
+            item is being dropped """
         pass
 
 

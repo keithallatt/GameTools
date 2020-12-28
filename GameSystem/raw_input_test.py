@@ -1,6 +1,10 @@
 """ Seems to work! """
 from pynput import keyboard
 
+# TODO: turn input into GameInput class or something.
+#  - needs to reference another GameSystem type class
+#  - pass relevant keys through,
+
 
 options = [
     "Yes", "No", "Maybe"
@@ -17,6 +21,7 @@ def option_str():
             for i in range(len(options))
         ]
     )
+
 
 def on_press(key):
     global index, options
