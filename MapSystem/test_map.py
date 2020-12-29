@@ -23,8 +23,9 @@ class MapTest(TestCase):
     def test_map_exception(self):
         """ Ensure exception raised for obviously wrong commands """
         # test setting to non-existent color key
+        example_map = Map(5, 5)
         with self.assertRaises(MapException) as context:
-            map_sys.set_map_char_block(character="ObviouslyWrong")
+            example_map.set_map_char_block(character="ObviouslyWrong")
 
         self.assertTrue('Color key non-existent' in
                         context.exception.msg)

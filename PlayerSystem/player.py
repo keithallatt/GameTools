@@ -86,7 +86,8 @@ class ExpSys(PointSystem):
         """ Display experience points as a bar being filled """
         if self.exp is None or self.max_exp is None:
             return ""
-        return "|" + "#" * (bar_length * self.exp // self.max_exp) + \
+        # u2588 is full block
+        return '|'+u'\u2588' * (bar_length * self.exp // self.max_exp) + \
                " " * (bar_length - (bar_length * self.exp // self.max_exp)) + "|"
 
 
@@ -137,7 +138,7 @@ class HealthSys(PointSystem):
         if self.hp is None or self.max_hp is None:
             return ""
 
-        return "|" + "#" * math.ceil(bar_length * self.hp / self.max_hp) + \
+        return '|'+u'\u2588' * math.ceil(bar_length * self.hp / self.max_hp) + \
                " " * (bar_length - math.ceil(bar_length * self.hp / self.max_hp)) + "|"
 
 
@@ -161,6 +162,8 @@ class PlayerSystem:
                  init_wallet: Wallet = None,
                  init_amount: int = 0):
         """ Create a player with many default parameters """
+        if point_systems is None:
+            point_systems = []
         self.point_systems = point_systems
         experience_systems = [
                p_sys for p_sys in point_systems if type(p_sys) is ExpSys
@@ -209,7 +212,12 @@ class PlayerSystem:
             str_repr = "-"*max_len + "\n|\tLevel "+str(level) + "\n" + str_repr
 
         if self.inventory is not None:
-            str_repr += "\n\tInventory:\n" + str(self.inventory)
+            inventory_repr = str(self.inventory)
+            label = "Inventory:"
+
+            w = (len(inventory_repr.split("\n")[0]) - len(label)) // 2
+
+            str_repr += "\n" + " " * w + label + "\n" + inventory_repr
 
         return str_repr
 
@@ -261,4 +269,8 @@ class PlayerSystem:
 
 
 if __name__ == "__main__":
+    e = PlayerSystem(level=5)
+
+    print(e)
+
     pass

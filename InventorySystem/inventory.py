@@ -502,7 +502,7 @@ class InventorySystem:
         l_end = "+-" + "-" * width + "+"
         presentation = "| " + "\n| ".join(item_lst_str)
         if presentation == "| ":
-            presentation += "~" + text_ + "~"
+            presentation += text_
 
         return "\n".join([l_end,
                           inv_name + " " * (len(l_end) - ansilen(inv_name) - 1) + "|",
