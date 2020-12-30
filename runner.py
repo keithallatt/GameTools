@@ -5,16 +5,8 @@ import sys
 import re
 from io import StringIO
 import tokenize
-
-# import test modules
-from CombatSystem.test_combat import CombatTest
-from InventorySystem.test_inventory import InventoryTest
-from InventorySystem.test_currency import CurrencyTest
-from MapSystem.test_map import MapTest
-from NPCSystem.test_npc import NPCTest
-from PlayerSystem.test_player import PlayerTest
-
-class_tests = [CombatTest, InventoryTest, CurrencyTest, MapTest, NPCTest, PlayerTest]
+import inspect
+import importlib
 
 
 def statistics(condensed=False):
@@ -57,7 +49,7 @@ def statistics(condensed=False):
         return [line for line in out.splitlines() if line.strip()]
 
     def count_lines(start, lines=0, source_loc=0, files=0,
-                    header=True, begin_start=None, condensed=False):
+                    show_header=True, begin_start=None, condense=False):
         """
         Modified from:
         https://stackoverflow.com/questions/38543709/count-lines-of-code-in-directory-using-python
@@ -66,7 +58,7 @@ def statistics(condensed=False):
         if start.endswith("__pycache__"):
             return lines, source_loc, files
 
-        if header:
+        if show_header:
             print('{:>10} |{:>10} |{:>10} | {:<40}'.format('RAW', 'S.L.O.C.', 'TOTAL', 'FILE'))
             print('{:->11}|{:->11}|{:->11}|{:->40}'.format('', '', '', ''))
 
@@ -97,12 +89,12 @@ def statistics(condensed=False):
                         else:
                             rel_dir_of_thing = pack_name + thing.replace(start, '')
 
-                        if not condensed:
+                        if not condense:
                             print('{:>10} |{:>10} |{:>10} | {:<40}'.format(
                                 newlines, source_lines_num, lines,
                                 rel_dir_of_thing))
 
-        if condensed:
+        if condense:
             print('{:>10} |{:>10} |{:>10} | {:<40}'.format(
                 lines, source_loc, lines, start))
 
@@ -110,8 +102,8 @@ def statistics(condensed=False):
             thing = os.path.join(start, thing)
             if os.path.isdir(thing):
                 lines, source_loc, files = count_lines(thing, lines, source_loc,
-                                                       files, header=False,
-                                                       begin_start=start, condensed=condensed)
+                                                       files, show_header=False,
+                                                       begin_start=start, condense=condense)
 
         return lines, source_loc, files
 
@@ -144,8 +136,8 @@ def statistics(condensed=False):
                                                              lines=total_lines,
                                                              source_loc=source_lines,
                                                              files=total_files,
-                                                             header=header,
-                                                             condensed=condensed)
+                                                             show_header=header,
+                                                             condense=condensed)
         if condensed and header:
             header = False
 
@@ -157,11 +149,45 @@ def statistics(condensed=False):
 
 
 def run_all_tests():
+    working_dir = os.getcwd() + os.sep
+
+    def add_module_path(sd):
+        """ Provided sd is a folder within the current working directory, and that folder is
+            a Python3+ module, format the filename of the __init__.py file """
+        return working_dir + sd + os.sep + "__init__.py"
+
+    # get all folders which constitute a python module
+    folders = [
+        subdir for subdir in os.listdir(working_dir)
+        if os.path.exists(add_module_path(subdir))
+    ]
+
+    # find all python files in those modules that are of the form
+    # test_<class_name>.py and add to a list of names
+    list_of_names = []
+    for folder in folders:
+        for file in os.listdir(folder):
+            if file.startswith("test_") and file.endswith(".py"):
+                file_path = folder + os.sep + file
+                list_of_names.append(folder+"."+file.replace(".py", ""))
+                importlib.import_module(folder+"."+file.replace(".py", ""), file_path)
+
+    # find all classes that extend unittest.case.TestCase and add to a list
+    class_tests = []
+    for module in list_of_names:
+        current_module = sys.modules[module]
+
+        class_members = inspect.getmembers(current_module, inspect.isclass)
+
+        for cls in class_members:
+            if unittest.case.TestCase in cls[1].__bases__:
+                class_tests.append(cls[1])
+
     # initialize the test suite
     loader = unittest.TestLoader()
     suite = unittest.TestSuite()
 
-    # add tests to the test suite
+    # add tests to the test suite from the list from before
     for test_cls in class_tests:
         suite.addTests(loader.loadTestsFromTestCase(test_cls))
 
@@ -176,7 +202,7 @@ def run_all_tests():
 
 
 if __name__ == "__main__":
-    condensed = "--condensed" in sys.argv[1:] or "-c" in sys.argv[1:]
+    condensed_flag = "--condensed" in sys.argv[1:] or "-c" in sys.argv[1:]
 
     output_file = open("runner_results.txt", 'w')
     io_stream = StringIO()
@@ -196,7 +222,7 @@ if __name__ == "__main__":
     print(test_result)
     print("Tests run: %s\nErrors: %s\nFailures: %s\n\n" % (run, errors, failures))
 
-    statistics(condensed=condensed)
+    statistics(condensed=condensed_flag)
 
     sys.stdout = sys.__stdout__
     print(io_stream.getvalue())
