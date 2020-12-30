@@ -1,6 +1,6 @@
 from __future__ import annotations
 from collections import OrderedDict
-from typing import Union
+from typing import Union, IO
 import math
 from io import TextIOWrapper
 import os
@@ -8,12 +8,23 @@ import json
 import warnings
 
 
+class CurrencyException(Exception):
+    """ Currency related exception. Allows a more narrow scope for error handling. """
+    def __init__(self, cause: Union[Wallet, CurrencySystem] = None, msg: str = None):
+        if msg is None:
+            msg = "An error occurred with Currency System:\n"
+            super(CurrencyException, self).__init__(msg)
+        self.msg = msg
+        self.cause = cause
+
+
 class PriceRegistry:
     """ Represents a unified list for any shopkeeper npc to use to buy items from the player """
     def __init__(self, registry: dict[str, int] = None,
-                 read_file: TextIOWrapper = None,  # direct file / text io object to read from
+                 read_file: Union[TextIOWrapper, Union[IO, IO[bytes]]] = None,
                  read_file_path: str = None):  # file path to open itself
         """ Create a price registry from file. """
+        # read_file -> direct file / text io object to read from
         if read_file is None and read_file_path is not None:
             try:
                 read_file = open(read_file_path, 'r')
@@ -51,15 +62,9 @@ class PriceRegistry:
             file.write(json.dumps(self.registry, indent=4, sort_keys=True))
             file.close()
 
-
-class CurrencyException(Exception):
-    """ Currency related exception. Allows a more narrow scope for error handling. """
-    def __init__(self, cause: Union[Wallet, CurrencySystem] = None, msg: str = None):
-        if msg is None:
-            msg = "An error occurred with Currency System:\n"
-            super(CurrencyException, self).__init__(msg)
-        self.msg = msg
-        self.cause = cause
+    def read_from_registry(self, item_name: str):
+        """ Retrieve the entry from the registry """
+        return self.registry.get(item_name, None)
 
 
 class Wallet:
