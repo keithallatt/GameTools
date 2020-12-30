@@ -9,16 +9,16 @@ class InventoryTest(TestCase):
     def test_item(self):
         """ Test item integer multiplications and item item additions. """
         # test a range of multiplications of items
-        for init_q in range(10):
-            for multiply_q in range(10):
+        for init_q in range(100):
+            for multiply_q in range(100):
                 foo = Item("foo", quantity=init_q)
                 multiply_foo = foo * multiply_q
 
                 self.assertEqual(multiply_foo.quantity, multiply_q * init_q)
 
         # test a range of addition of items
-        for init_q in range(10):
-            for add_q in range(10):
+        for init_q in range(100):
+            for add_q in range(100):
                 if init_q != 3 or add_q != 3:
                     continue
 
@@ -53,11 +53,10 @@ class InventoryTest(TestCase):
     def test_inventory_system(self):
         """ Test inventory system for its ability to add multiple items to itself """
         # test adding different items, making sure all are added
-        for foo_q in range(6):
-            for bar_q in range(3):
+        for foo_q in range(100):
+            for bar_q in range(100):
 
-                inv = InventorySystem(stack_limit=3,
-                                      max_slots=3,
+                inv = InventorySystem(stack_limit=99,
                                       item_filter=ItemFilter.FILTER_ACCEPT_ALL)
                 foo = Item("foo")
                 bar = Item("bar")
