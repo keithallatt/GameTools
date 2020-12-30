@@ -211,9 +211,8 @@ if __name__ == "__main__":
 
     runner_result, test_result = run_all_tests()
 
-    pat = re.compile(r"<unittest\.runner\.TextTestResult run=(\d+) errors=(\d+) failures=(\d+)>")
-
-    m = pat.match(str(runner_result))
+    m = re.match(r"<unittest\.runner\.TextTestResult run=(\d+) errors=(\d+) failures=(\d+)>",
+                 str(runner_result))
     run, errors, failures = m.groups()
 
     print("-"*70)
