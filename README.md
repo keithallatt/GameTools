@@ -32,6 +32,9 @@ code, and its flexibility to be used in a number of ways.
 
 ### `inventory.py`
 
+
+<details> 
+
 ### Item
 
 ``` python
@@ -184,6 +187,7 @@ the same way, the only difference being all weights must be integers.
 
 </details>
 
+
 ### Inventory
 
 ``` python
@@ -197,7 +201,62 @@ a comprehensive inventory system. The use of `ItemFilter` objects on each
 inventory system allows automatic sorting and `ItemCategory` tags allow
 conditional settings such as stack limit or max slot limits. 
 
+</details> <!--- End inventory.py -->
 
+
+### `currency.py`
+
+<details> 
+
+### CurrencySystem
+
+``` python
+CurrencySystem(relative_denominations: OrderedDict[str, int])
+```
+
+### PriceRegistry
+
+``` python
+PriceRegistry(registry: dict[str, int],,
+              read_file: TextIOWrapper,
+              read_file_path: str)
+```
+
+
+### Wallet
+
+``` python
+Wallet(curr_sys: CurrencySystem, 
+       amount: int)
+```
+
+</details> <!--- End currency.py -->
+
+
+</details> <!--- End Inventory System -->
+
+___
+
+<details> <summary style="font-size:1.25em;"><del>The Map System</del></summary>
 </details>
 
+___
+
+<details> <summary style="font-size:1.25em;"><del>The NPC System</del></summary>
+</details>
+
+___
+
+<details> <summary style="font-size:1.25em;"><del>The Player System</del></summary>
+</details>
+
+___
+
+<details> <summary style="font-size:1.25em;"><del>The Combat System</del></summary>
+</details>
+
+___
+
+<details> <summary style="font-size:1.25em;"><del>The Game System</del></summary>
+</details>
 
