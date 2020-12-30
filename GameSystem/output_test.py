@@ -305,3 +305,5 @@ if __name__ == "__main__":
     GameSysIO.running = True
     myThread = Thread(target=GameSysIO.my_timer)
     myThread.start()
+
+    #print(ascii_art("GameTools", shadow=True, font="PragmataProR_liga_0826.ttf", trim=True, font_size=20))

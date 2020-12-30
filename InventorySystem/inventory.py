@@ -4,7 +4,6 @@ import jsonpickle
 import json
 import copy
 import pprint
-import re
 from typing import Union, Dict, Any, List
 import warnings
 import random
@@ -23,8 +22,6 @@ class Item:
         self.max_slots = kwargs.get("max_slots", None)
         kwargs.update({"max_slots": self.max_slots})
 
-        self.color = kwargs.get("color", None)
-        kwargs.update({"color": self.color})
         self.category = kwargs.get("category", None)
         kwargs.update({"category": self.category})
         self.price = kwargs.get("price", None)
@@ -518,8 +515,8 @@ class Inventory:
         self.pages = list(kwargs.get("pages", [
             InventorySystem(item_filter=ItemFilter.FILTER_ACCEPT_ALL)
         ]))
-        self.all_pages_in_str = True
-        self.page_display = 0
+        self.all_pages_in_str = bool(kwargs.get("all_pages_in_str", True))
+        self.page_display = int(kwargs.get("page_display", 0))
 
         # all categories accepted by all pages of the inventory.
         all_cats = sum([
