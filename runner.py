@@ -176,7 +176,7 @@ def run_all_tests():
 
 
 if __name__ == "__main__":
-    condensed = True
+    condensed = "--condensed" in sys.argv[1:] or "-c" in sys.argv[1:]
 
     output_file = open("runner_results.txt", 'w')
     io_stream = StringIO()

@@ -127,7 +127,7 @@ In Minecraft, there are 36 slots, in which each can (usually) contain 64 items.
 Therefore, to specify a Minecraft style inventory, we'd write:
 
 ``` python
-inv = Inventory(max_slots=36, stack_limit=64)  
+inv = InventorySystem(max_slots=36, stack_limit=64)  
 ```
 
 <h4><u>'Rule of 99' style</u></h4>
@@ -138,7 +138,7 @@ In a 'Rule of 99' style inventory, any number of items can be stored, but only
 Therefore, to specify a 'Rule of 99' style inventory, we'd write:
 
 ``` python
-inv = Inventory(stack_limit=99)
+inv = InventorySystem(stack_limit=99)
 ```
 
 <h4><u>'Set in Stone' style</u></h4>
@@ -152,7 +152,7 @@ Therefore, to specify a 'Set in Stone' style inventory, with `n` slots, we'd
 write:
 
 ``` python
-inv = Inventory(max_slots=n, remove_on_0=False)
+inv = InventorySystem(max_slots=n, remove_on_0=False)
 ```
 
 <h4><u>'Weight based' style</u></h4>
@@ -167,7 +167,7 @@ Therefore, to specify a 'weight based' inventory with weight limit `L`,
 we'd write:
 
 ``` python
-inv = Inventory(weight_based=True, weight_limit=L)
+inv = InventorySystem(weight_based=True, weight_limit=L)
 ```
 
 <h4><u>'Slot based' style</u></h4>

@@ -37,7 +37,6 @@ class Item:
             raise InventoryException(self, msg="Item with non-positive weight defined.")
 
         self.name = " ".join([n.capitalize() for n in name.split(" ")])
-
         self.kwargs = kwargs
 
     def __str__(self):
