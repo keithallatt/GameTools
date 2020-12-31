@@ -85,11 +85,13 @@ If not running in Pycharm:
  - Check 'Emulate terminal in output console'
 """
 
+
 def start_game_sys(game_queue: list):
     GameSysIO.game_queue = game_queue
     GameSysIO.running = True
-    game_thread = Thread(target=GameSysIO._game_timer())
+    game_thread = Thread(target=GameSysIO.get_game_timer())
     game_thread.start()
+
 
 class GameSysIO:
     def __init__(self):
@@ -100,10 +102,10 @@ class GameSysIO:
 
     game_queue = []
 
-    def on_press(self, key):
+    def on_press(self, key: keyboard.Key):
         pass
 
-    def on_release(self, key):
+    def on_release(self, key: keyboard.Key):
         pass
 
     def draw_init(self):
@@ -130,6 +132,10 @@ class GameSysIO:
                     next_sys.restart()
             else:
                 exit(0)
+
+    @classmethod
+    def get_game_timer(cls):
+        return cls._game_timer
 
 
 class TitleSysIO(GameSysIO):
@@ -165,7 +171,7 @@ class TitleSysIO(GameSysIO):
 
         self.console.refresh()
 
-    def on_press(self, key):
+    def on_press(self, key: keyboard.Key):
         try:
             self.console.addstr(len(self.board)+2+self.option_choice, 1, " ")
 
@@ -185,7 +191,7 @@ class TitleSysIO(GameSysIO):
             self.exit_code = 1
             return False
 
-    def on_release(self, key):
+    def on_release(self, key: keyboard.Key):
         if key == keyboard.Key.enter:
             if self.option_choices[self.option_choice] == "Quit":
                 # Stop listener
@@ -243,7 +249,7 @@ class MapIO(GameSysIO):
         self.console.addstr(self.y_loc, self.x_loc * 2, self.char)
         self.console.refresh()
 
-    def on_press(self, key):
+    def on_press(self, key: keyboard.Key):
         try:
             new_x, new_y = self.x_loc, self.y_loc
 
@@ -285,7 +291,7 @@ class MapIO(GameSysIO):
             self.exit_code = 1
             return False
 
-    def on_release(self, key):
+    def on_release(self, key: keyboard.Key):
         if key == keyboard.Key.esc:
             GameSysIO.game_queue.append((TitleSysIO, ("Game", ["Continue", "Quit"])))
             GameSysIO.game_queue.append(self)

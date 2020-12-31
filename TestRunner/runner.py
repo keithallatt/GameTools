@@ -105,7 +105,7 @@ def statistics(condensed=False):
 
         return lines, source_loc, files
 
-    working_dir = os.getcwd() + os.sep
+    working_dir = os.sep.join(os.getcwd().split(os.sep)[:-1]) + os.sep
 
     def add_module_path(sd):
         """ Provided sd is a folder within the current working directory, and that folder is
@@ -147,7 +147,8 @@ def statistics(condensed=False):
 
 
 def run_all_tests():
-    working_dir = os.getcwd() + os.sep
+    # working dir needs to be */GameTools
+    working_dir = os.sep.join(os.getcwd().split(os.sep)[:-1]) + os.sep
 
     def add_module_path(sd):
         """ Provided sd is a folder within the current working directory, and that folder is
@@ -164,11 +165,13 @@ def run_all_tests():
     # test_<class_name>.py and add to a list of names
     list_of_names = []
     for folder in folders:
-        for file in os.listdir(folder):
+        for file in os.listdir(working_dir+folder):
             if file.startswith("test_") and file.endswith(".py"):
                 file_path = folder + os.sep + file
-                list_of_names.append(folder+"."+file.replace(".py", ""))
-                importlib.import_module(folder+"."+file.replace(".py", ""), file_path)
+                module_path = folder + "." + file[:-3]
+
+                list_of_names.append(module_path)
+                importlib.import_module(module_path, file_path)
 
     # find all classes that extend unittest.case.TestCase and add to a list
     class_tests = []
@@ -205,7 +208,7 @@ if __name__ == "__main__":
     output_file = open("runner_results.txt", 'w')
     io_stream = StringIO()
 
-    sys.stdout = io_stream
+    #sys.stdout = io_stream
 
     runner_result, test_result = run_all_tests()
 
