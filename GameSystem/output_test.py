@@ -29,7 +29,7 @@ def ascii_art(text: str, font: str = "Arial.ttf", font_size: int = 15, x_margin:
     size = (size[0] + 2 * x_margin,
             size[1] + 2 * y_margin)
 
-    # size may be too small for some fonts / letters (
+    # size may be too small for some fonts / letters
 
     img = Image.new("1", size, "black")
 
@@ -159,7 +159,6 @@ class TitleSysIO(GameSysIO):
 
         self.console.refresh()
 
-
     def on_press(self, key):
         try:
             self.console.addstr(len(self.board)+2+self.option_choice, 1, " ")
@@ -260,12 +259,16 @@ class MazeIO(GameSysIO):
 
             if key == keyboard.Key.left:
                 new_x -= 1
+                self.char = "<<"
             if key == keyboard.Key.right:
                 new_x += 1
+                self.char = ">>"
             if key == keyboard.Key.up:
                 new_y -= 1
+                self.char = "^^"
             if key == keyboard.Key.down:
                 new_y += 1
+                self.char = "vv"
 
             if new_x < 0:
                 new_x = 0
@@ -305,5 +308,3 @@ if __name__ == "__main__":
     GameSysIO.running = True
     myThread = Thread(target=GameSysIO.my_timer)
     myThread.start()
-
-    #print(ascii_art("GameTools", shadow=True, font="PragmataProR_liga_0826.ttf", trim=True, font_size=20))
