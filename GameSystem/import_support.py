@@ -105,12 +105,13 @@ def find_all_packages():
                     else:
                         modules_to_import.add(import_module)
 
-    return list(modules_to_import)
+    modules_to_import = list(modules_to_import)
+
+    modules_to_import.sort()
+
+    return modules_to_import
 
 
 if __name__ == "__main__":
-    # TODO: Check the root-level files for imports as well. (GameTools/*)
-    #  Such as runner.py and anything else that may end up there.
-
     modules = find_all_packages()
     install_all_packages(modules)

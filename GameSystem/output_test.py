@@ -1,11 +1,11 @@
 import _curses
 import curses
-from MapSystem.map import MazeSystem, BlankSystem
+from MapSystem.map import BlankSystem
 from pynput import keyboard
 from PIL import Image, ImageDraw, ImageFont
 import numpy as np
-from time import sleep
 from threading import Thread
+import os
 
 
 def ascii_art(text: str, font: str = "Arial.ttf", font_size: int = 15, x_margin: int = 0,
@@ -18,7 +18,8 @@ def ascii_art(text: str, font: str = "Arial.ttf", font_size: int = 15, x_margin:
     try:
         font_object = ImageFont.truetype(font, font_size)
     except OSError:
-        font_object = ImageFont.truetype("/Library/Fonts/" + font, font_size)
+        font_object = ImageFont.truetype(os.sep.join(['', 'Library', 'Fonts', '']) + font,
+                                         font_size)
 
     size = font_object.getsize(text)
 
@@ -39,15 +40,15 @@ def ascii_art(text: str, font: str = "Arial.ttf", font_size: int = 15, x_margin:
     pixels = np.array(img, dtype=np.uint8)
 
     if shadow:
-        shadow_pixels_diag = np.roll(pixels, (1, 1), axis=(0, 1))
-        shadow_pixels_top = shadow_pixels_diag
-        shadow_pixels_bottom = shadow_pixels_diag
+        shadow_pixels_diagonal = np.roll(pixels, (1, 1), axis=(0, 1))
+        shadow_pixels_top = shadow_pixels_diagonal
+        shadow_pixels_bottom = shadow_pixels_diagonal
         if full_shadow:
             shadow_pixels_top = np.roll(pixels, (1, 0), axis=(0, 1))
             shadow_pixels_bottom = np.roll(pixels, (0, 1), axis=(0, 1))
 
         pixels = 2*pixels
-        pixels = np.maximum(pixels, shadow_pixels_diag)
+        pixels = np.maximum(pixels, shadow_pixels_diagonal)
         pixels = np.maximum(pixels, shadow_pixels_top)
         pixels = np.maximum(pixels, shadow_pixels_bottom)
     else:
@@ -84,6 +85,11 @@ If not running in Pycharm:
  - Check 'Emulate terminal in output console'
 """
 
+def start_game_sys(game_queue: list):
+    GameSysIO.game_queue = game_queue
+    GameSysIO.running = True
+    game_thread = Thread(target=GameSysIO._game_timer())
+    game_thread.start()
 
 class GameSysIO:
     def __init__(self):
@@ -113,7 +119,7 @@ class GameSysIO:
             listener.join()
 
     @staticmethod
-    def my_timer():
+    def _game_timer():
         while True:
             if len(GameSysIO.game_queue) > 0:
                 next_sys = GameSysIO.game_queue.pop(0)
@@ -190,7 +196,7 @@ class TitleSysIO(GameSysIO):
                 return False
             if self.option_choices[self.option_choice] == "Start":
                 # Stop listener
-                GameSysIO.game_queue.append((MazeIO, (MazeSystem(10, 10),)))
+                GameSysIO.game_queue.append((MapIO, (BlankSystem(10, 10, 'WALKABLE'), 1, 1)))
                 self.exit_code = 0
                 self.console.clear()
                 curses.endwin()
@@ -203,37 +209,23 @@ class TitleSysIO(GameSysIO):
                 return False
 
 
-class MazeIO(GameSysIO):
-    def __init__(self, maze: MazeSystem):
+class MapIO(GameSysIO):
+    def __init__(self, main_map: BlankSystem, x_loc: int, y_loc: int):
         super().__init__()
 
-        x_max, y_max = maze.dims
-
-        self.main_map = BlankSystem(x_max+4, y_max+4, "WALKABLE")
-        self.main_map.draw_rect_to_map("WALL", 0, 0, x_max+4, y_max+4)
-        self.main_map.draw_rect_to_map("WALL", 1, 0, x_max+2, y_max+4)
-
-        self.main_map.draw_sub_map(maze, 2, 2)
-        self.main_map.draw_to_map("WALKABLE", 3, 2)
-        self.main_map.draw_to_map("WALKABLE", 3, 2)
-        self.main_map.draw_to_map("WALKABLE", x_max, y_max+1)
-
-        self.x_max, self.y_max = self.main_map.dims
+        self.main_map = main_map
+        self.x_max, self.y_max = main_map.dims
 
         # this can be more streamlined but it's enough for demonstration purposes...
         self.console.clear()
 
-        board = str(self.main_map).split("\n")
-
-        for i in range(len(board)):
-            self.console.addstr(i, 0, board[i])
-
-        self.x_loc = (x_max + 1) // 2 + 1
-        self.y_loc = 1
+        self.x_loc = x_loc
+        self.y_loc = y_loc
 
         self.char = "P1"
 
-        self.console.addstr(self.y_loc, self.x_loc * 2, self.char)
+        self.draw_init()
+
         self.console.refresh()
 
         with keyboard.Listener(on_press=self.on_press, on_release=self.on_release,
@@ -255,7 +247,8 @@ class MazeIO(GameSysIO):
         try:
             new_x, new_y = self.x_loc, self.y_loc
 
-            self.console.addstr(self.y_loc, self.x_loc * 2, self.main_map.MAP_CHARS[self.main_map.map[new_y][new_x]])
+            self.console.addstr(self.y_loc, self.x_loc * 2,
+                                self.main_map.MAP_CHARS[self.main_map.map[new_y][new_x]])
 
             if key == keyboard.Key.left:
                 new_x -= 1
@@ -286,7 +279,7 @@ class MazeIO(GameSysIO):
             self.console.addstr(self.y_loc, self.x_loc * 2, self.char)
             self.console.refresh()
 
-        except _curses.error as e:
+        except _curses.error:
             self.console.clear()
             curses.endwin()
             self.exit_code = 1
@@ -294,7 +287,6 @@ class MazeIO(GameSysIO):
 
     def on_release(self, key):
         if key == keyboard.Key.esc:
-            # Stop listener
             GameSysIO.game_queue.append((TitleSysIO, ("Game", ["Continue", "Quit"])))
             GameSysIO.game_queue.append(self)
             self.exit_code = 0
@@ -304,7 +296,4 @@ class MazeIO(GameSysIO):
 
 
 if __name__ == "__main__":
-    GameSysIO.game_queue = [(TitleSysIO, ("Game",))]
-    GameSysIO.running = True
-    myThread = Thread(target=GameSysIO.my_timer)
-    myThread.start()
+    start_game_sys([(TitleSysIO, ("Game",))])
