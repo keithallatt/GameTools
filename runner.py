@@ -16,8 +16,7 @@ def statistics(condensed=False):
          - Number of source lines of code
     """
     def remove_comments_and_docstrings(source):
-        """
-        Modified slightly from:
+        """ Modified slightly from:
         https://stackoverflow.com/questions/1769332/script-to-remove-python-comments-docstrings
         """
         io_obj = StringIO(source)
@@ -50,8 +49,7 @@ def statistics(condensed=False):
 
     def count_lines(start, lines=0, source_loc=0, files=0,
                     show_header=True, begin_start=None, condense=False):
-        """
-        Modified from:
+        """ Modified from:
         https://stackoverflow.com/questions/38543709/count-lines-of-code-in-directory-using-python
         """
 
@@ -132,12 +130,12 @@ def statistics(condensed=False):
             print("-"*length_of_dash)
             print(f"Counting {working_dir.split(os.sep)[-2] + os.sep + folder}")
             print("-"*length_of_dash)
-        total_lines, source_lines, total_files = count_lines(start=working_dir + folder,
-                                                             lines=total_lines,
-                                                             source_loc=source_lines,
-                                                             files=total_files,
-                                                             show_header=header,
-                                                             condense=condensed)
+
+        count_lines_result = count_lines(start=working_dir + folder, lines=total_lines,
+                                         source_loc=source_lines, files=total_files,
+                                         show_header=header, condense=condensed)
+        total_lines, source_lines, total_files = count_lines_result
+
         if condensed and header:
             header = False
 
@@ -215,16 +213,16 @@ if __name__ == "__main__":
                  str(runner_result))
     run, errors, failures = m.groups()
 
+    statistics(condensed=condensed_flag)
+
     print("-"*70)
     print("Running test suite ... ")
     print("-"*70)
     print(test_result)
     print("Tests run: %s\nErrors: %s\nFailures: %s\n\n" % (run, errors, failures))
 
-    statistics(condensed=condensed_flag)
-
     sys.stdout = sys.__stdout__
-    print(io_stream.getvalue())
+    print(io_stream.getvalue().replace("ok", "ok\n"))
 
     ansi_escape = re.compile(r'\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])')
     to_file = ansi_escape.sub('', io_stream.getvalue())

@@ -47,6 +47,8 @@ class PriceRegistry:
             except json.decoder.JSONDecodeError:
                 warnings.warn(f"Registry file {read_file_path} corrupted.")
                 self.registry = {}
+            finally:
+                read_file.close()
 
     def __str__(self):
         """ Represent the registry as a list of items and prices """
@@ -183,6 +185,9 @@ class CurrencySystem:
             self.denominations = list(relative_denominations.keys())
             self.relative_denominations = relative_denominations
 
+        if len(self.relative_denominations) == 0:
+            raise CurrencyException(msg="Cannot have empty currency system",
+                                    cause=self)
         if self.relative_denominations[list(self.relative_denominations.keys())[0]] != 1:
             raise CurrencyException(msg="Cannot have most valued denomination worth != 1",
                                     cause=self)

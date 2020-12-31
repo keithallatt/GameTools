@@ -42,6 +42,7 @@ def install_all_packages(modules_to_try):
         try:
             # if you can import the module, it is installed.
             __import__(module)
+            print("Module imported", module)
         except ImportError as e:
             # if it isn't installed, ask to install it.
             print("Failed to import", module, "\nAttempting to install.")
