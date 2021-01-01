@@ -28,6 +28,10 @@ Python is not a great language for game development, but hopefully this tool
 can be used to prototype games in Python because of its high level, readable 
 code, and its flexibility to be used in a number of ways. 
 
+If you choose to use this library, please read the section on unit tests. There 
+is a specific way to format your tests in your module to have the test runner
+find and run your test with all the predefined tests. 
+
 <details><summary style="font-size:1.25em;">The Inventory System</summary>
 
 ### `inventory.py`
@@ -322,3 +326,26 @@ ___
 <details><summary style="font-size:1.25em;"><del>The Game System</del></summary>
 </details>
 
+___
+
+<details><summary style="font-size:1.25em;">Unit Test</summary>
+
+To create a unit test in your module, create a file `test_<module name>.py`. 
+The criteria for `TestRunner/runner.py` finding and running your test case
+is by having the filename start with `test_` and end with the python `.py` file 
+extension.
+
+In said test case file, any classes that inherit from `unittest.TestCase` will 
+be loaded into the test suite and run. 
+
+As part of the `runner.py` file, all python source files, excluding empty
+`__init__.py` files, will have their code reviewed, and have the total lines
+of code (with comments and docstrings) as well as the number of source lines
+of code (no comments or docstrings) counted and summed to give some statistics
+about the project. Namely, the number of files, total and source lines of code,
+and the results of the unit tests.
+
+</details><!--- End Unit Test -->
+
+
+---

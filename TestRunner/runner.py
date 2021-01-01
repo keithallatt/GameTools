@@ -20,11 +20,11 @@ def statistics(source: str, condensed: bool = False):
          - Number of source lines of code
     """
 
-    def remove_comments_and_docstrings(source):
+    def remove_comments_and_docstrings(source_code):
         """ Modified slightly from:
         https://stackoverflow.com/questions/1769332/script-to-remove-python-comments-docstrings
         """
-        io_obj = StringIO(source)
+        io_obj = StringIO(source_code)
         out = ""
         prev_tok_type = tokenize.INDENT
         last_line_no = -1
@@ -62,44 +62,48 @@ def statistics(source: str, condensed: bool = False):
             return lines, source_loc, files
 
         if show_header:
-            print('{:>10} |{:>10} |{:>10} | {:<44}'.format('RAW', 'S.L.O.C.', 'TOTAL', 'FILE'))
-            print('{:->11}\u253C{:->11}\u253C{:->11}\u253C{:->48}'.format('', '', '', ''))
+            print('{:>10} |{:>10} |{:>10} |{:>10} | {:<20}'.format(
+                'Raw', 'Source', 'Total', 'Source', 'File'))
+            print('{:->11}\u253C{:->11}\u253C{:->11}\u253C{:->11}\u253C{:->36}'.format(
+                '', '', '', '', ''))
 
+        in_package = 0
         for thing in os.listdir(start):
             thing = os.path.join(start, thing)
             if os.path.isfile(thing):
                 if thing.endswith('.py'):
                     if thing.endswith("__init__.py"):
                         # see if the file is worth reading
+                        # if there is nothing by whitespace in this file, then ignore it.
                         if len([line for line in open(thing, 'r').readlines() if
                                 len(line.strip()) > 0]) == 0:
                             continue
 
                     with open(thing, 'r') as f:
                         newlines = f.readlines()
-                        source = remove_comments_and_docstrings("\n".join(newlines))
+                        source_code_no_comments = \
+                            remove_comments_and_docstrings("\n".join(newlines))
                         newlines = len(newlines)
-                        source_lines_num = len(source)
+                        source_lines_num = len(source_code_no_comments)
 
                         source_loc += source_lines_num
+                        in_package += source_lines_num
                         lines += newlines
                         files += 1
 
-                        pack_name = start.split(os.sep)[-1]
-
                         if begin_start is not None:
-                            rel_dir_of_thing = pack_name + thing.replace(begin_start, '')
+                            rel_dir_of_thing = "." + thing.replace(begin_start, '')
                         else:
-                            rel_dir_of_thing = pack_name + thing.replace(start, '')
+                            rel_dir_of_thing = "." + thing.replace(start, '')
 
                         if not condense:
-                            print('{:>10} |{:>10} |{:>10} | {:<40}'.format(
+                            print('{:>10} |{:>10} |{:>10} |{:>10} | {:<20}'.format(
                                 newlines, source_lines_num, lines,
-                                rel_dir_of_thing))
+                                source_loc, rel_dir_of_thing))
 
         if condense:
-            print('{:>10} |{:>10} |{:>10} | {:<40}'.format(
-                lines, source_loc, lines, start))
+            print('{:>10} |{:>10} |{:>10} |{:>10} | {:<30}'.format(
+                lines, source_loc, lines, in_package, start.split(os.sep)[-1]))
 
         for thing in os.listdir(start):
             thing = os.path.join(start, thing)
@@ -110,7 +114,6 @@ def statistics(source: str, condensed: bool = False):
 
         return lines, source_loc, files
 
-    # working_dir = os.sep.join(os.getcwd().split(os.sep)[:-1]) + os.sep
     working_dir = source
     if working_dir[-1] != os.sep:
         working_dir += os.sep
@@ -162,8 +165,7 @@ def statistics(source: str, condensed: bool = False):
 
 
 def run_all_tests(source: str):
-    # working dir needs to be */GameTools
-    # working_dir = os.sep.join(os.getcwd().split(os.sep)[:-1]) + os.sep
+    # working dir needs to be **/GameTools/
     working_dir = source
     if working_dir[-1] != os.sep:
         working_dir += os.sep
@@ -223,12 +225,11 @@ def run_all_tests(source: str):
 if __name__ == "__main__":
     condensed_flag = "--condensed" in sys.argv[1:] or "-c" in sys.argv[1:]
 
-
     # Expecting to be run in TestRunner package
     source_path = Path(__file__).resolve()
     source_dir = str(source_path.parent.parent)
 
-    if not source_dir in sys.path:
+    if source_dir not in sys.path:
         sys.path.append(source_dir)
 
     output_file = open("runner_results.txt", 'w')
@@ -261,16 +262,15 @@ if __name__ == "__main__":
     output_lines = [line.rstrip() for line in output_lines]
 
     output_lines = ["-" * length_of_dash if line.replace("-", "").strip() == ""
-                                            and len(line.strip()) > 0 else line for line in
-                    output_lines]
+                    and len(line.strip()) > 0 else line for line in output_lines]
 
     output_lines = sum([textwrap.wrap(line, width=length_of_dash) for line in output_lines], [])
     output_lines = ("\n".join(output_lines).replace("ok", "ok\n")).split("\n")
 
     output_lines = [line + " " * (length_of_dash - len(line)) for line in output_lines]
 
-    def output_line_format(l):
-        return [u"\u251C-", "-\u2524"] if l.startswith("----") else ["\u2502 ", " \u2502"]
+    def output_line_format(line):
+        return [u"\u251C-", "-\u2524"] if line.startswith("----") else ["\u2502 ", " \u2502"]
 
     output_lines = [line.join(output_line_format(line)) for line in output_lines]
     output_lines = [output_lines[0].replace("\u251C", "\u250C").replace("\u2524", "\u2510")] + \
