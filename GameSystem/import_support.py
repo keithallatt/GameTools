@@ -120,6 +120,9 @@ class ImportSupport:
 
     @staticmethod
     def find_and_install_packages():
+        """ Use private methods to separately use introspective code inspection
+            to read out which modules are necessary for the project, then pass
+            that list of modules to be installed if necessary. """
         ImportSupport._install_all_packages(ImportSupport._find_all_packages())
 
 

@@ -31,6 +31,8 @@ class PythonDocs:
             yield "Description"
             yield "</th></tr>\n"
 
+            class_members.sort(key=lambda x: x[0])
+
             for method in class_members:
                 yield "<tr>\n"
                 yield "<th style=\"width:33%\">\n" + method[0] + "\n</th>\n"
@@ -48,7 +50,7 @@ class PythonDocs:
 
         def add_module_path(sd):
             """ Provided sd is a folder within the current working directory, and that folder is
-                a Python3+ module, format the filename of the __init__.py file """
+                a Python3+ module, format the filename of the __init__.py file. """
             return working_dir + sd + os.sep + "__init__.py"
 
         # get all folders which constitute a python module
@@ -68,6 +70,8 @@ class PythonDocs:
 
                     list_of_names.append(module_path)
                     importlib.import_module(module_path, file_path)
+
+        list_of_names.sort()
 
         for module in list_of_names:
             current_module = sys.modules[module]

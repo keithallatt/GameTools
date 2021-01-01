@@ -137,15 +137,14 @@ class ItemCategory:
     """ Category for items. Each item can belong to multiple categories, but it is
         recommended that only one be used. """
     def __init__(self, name: str, **kwargs):
-        """ Define a new category. Can include foreground and background colors,
-            as well as stack limits or max slot capacities. """
+        """ Define a new category. Can include stack limits or max slot capacities. """
         self.name = name
 
         self.stack_limit = kwargs.get("stack_limit", None)
         self.max_slots = kwargs.get("max_slots", None)
 
     def __str__(self):
-        """ Return ANSI free representation of the category """
+        """ Return string representation of the category. """
         return self.name + " Category"
 
     def __eq__(self, other):
@@ -155,12 +154,12 @@ class ItemCategory:
         return self.name == other.name
 
     def __hash__(self):
-        """ Return hash of string representation with ANSI escape codes. """
-        return hash(self.name)
+        """ Return hash of string representation. """
+        return hash(str(self))
 
 
 class ItemFilter:
-    """ Filter for Inventory Systems. Default filter is a blanket block filter,  """
+    """ Filter for Inventory Systems. Default filter is a blanket block filter. """
 
     # Blanket accept filter reference.
     FILTER_ACCEPT_ALL = None
@@ -174,7 +173,7 @@ class ItemFilter:
             self.filter_cats.update(filter_cats)
 
     def accept(self, item: Item):
-        """ Returns whether the described item filter accepts the item based on its category """
+        """ Returns whether the described item filter accepts the item based on its category. """
         return self.filter_cats.get(item.category,
                                     self.filter_cats[None if item.category is None else Any])
 
@@ -184,7 +183,7 @@ class ItemFilter:
                                     self.filter_cats[None if item_category is None else Any])
 
     def get_categories(self):
-        """ Return the set of categories for which this filter will accept """
+        """ Return the set of categories for which this filter will accept. """
         cats = []
         for k, v in self.filter_cats.items():
             if k is not Any:
@@ -193,7 +192,7 @@ class ItemFilter:
         return cats
 
     def get_restricted(self):
-        """ Return the set of categories for which this filter will deny """
+        """ Return the set of categories for which this filter will deny. """
         cats = []
         for k, v in self.filter_cats.items():
             if k is not Any:
@@ -202,15 +201,15 @@ class ItemFilter:
         return cats
 
     def is_generalized(self):
-        """ Return whether this filter accepts items with no category (generalized item) """
+        """ Return whether this filter accepts items with no category (generalized item). """
         return self.filter_cats[None]
 
     def is_categorized(self):
-        """ Return whether this filter will accept any item that is categorized """
+        """ Return whether this filter will accept any item that is categorized. """
         return self.filter_cats[Any]
 
     def is_all_encompassing(self):
-        """ Return if this filter accepts all items (all-encompassing) """
+        """ Return if this filter accepts all items (all-encompassing). """
         return self.filter_cats[None] and self.filter_cats[Any] and \
             False not in list(self.filter_cats.values())
 
@@ -244,10 +243,10 @@ class ItemFilter:
 
 
 class InventorySystem:
-    """ A flexible inventory system """
+    """ A flexible inventory system. """
     def __init__(self, **kwargs):
         """ Generate an inventory system (inventory page)
-            based on the following keyword arguments """
+            based on the following keyword arguments. """
         self.kwargs = kwargs
 
         # Maximum number of inventory slots.
@@ -405,7 +404,7 @@ class InventorySystem:
         return self
 
     def _get_items(self, lst, val, full_stacks=False):
-        """ Return all items of kind `val`, full_stacks determining if full stacks are included """
+        """ Return all items of kind `val`, full_stacks determining if full stacks are included. """
         return [x for x in lst if x == val and
                 (self.stack_limit is None or x.quantity < self.stack_limit
                  or (x.quantity == self.stack_limit and full_stacks))]
@@ -420,7 +419,7 @@ class InventorySystem:
 
     def set_stack_limit(self, stack_limit):
         """ Set new stack limit. Throws exception if new stack limit * max slots < current items
-            stored in inventory. Increasing stack limit never causes exception """
+            stored in inventory. Increasing stack limit never causes exception. """
         all_contents = self._contents
         self.stack_limit = stack_limit
         self._contents = []
@@ -430,7 +429,7 @@ class InventorySystem:
     def set_max_slots(self, max_slots):
         """ Set new max number of slots limit. Throws exception if
             new max slots limit * stack limit < current items stored in inventory.
-            Increasing max slots limit never causes exception """
+            Increasing max slots limit never causes exception. """
         all_contents = self._contents
         self.max_slots = max_slots
         self._contents = []
@@ -438,15 +437,15 @@ class InventorySystem:
             self._add_item(item)
 
     def num_slots(self):
-        """ Returns number of slots currently used """
+        """ Returns number of slots currently used. """
         return len(self._contents)
 
     def get_slots(self):
-        """ Return a copy of the contents """
+        """ Return a copy of the contents. """
         return self._contents[::]
 
     def __add__(self, other: Union[Item, list[Item]]):
-        """ Add a single item or a list of items to the inventory """
+        """ Add a single item or a list of items to the inventory. """
         if type(other) == Item:
             return copy.deepcopy(self)._add_item(other)
         else:
@@ -456,7 +455,7 @@ class InventorySystem:
             return inv_copy
 
     def __sub__(self, other: Union[Item, list[Item]]):
-        """ Remove a single item or a list of items to the inventory """
+        """ Remove a single item or a list of items to the inventory. """
         if type(other) == Item:
             return copy.deepcopy(self)._remove_item(other)
         else:
@@ -511,7 +510,7 @@ class InventorySystem:
 class Inventory:
     """ Collection of Inventory Systems. """
     def __init__(self, **kwargs):
-        """ Create an inventory (collection of inventory pages) """
+        """ Create an inventory (collection of inventory pages). """
         self.pages = list(kwargs.get("pages", [
             InventorySystem(item_filter=ItemFilter.FILTER_ACCEPT_ALL)
         ]))
@@ -568,7 +567,7 @@ class Inventory:
 
     def __str__(self):
         """ Return the string representation of an inventory (can display multiple
-            pages or a single page at a time."""
+            pages or a single page at a time. """
         if not self.all_pages_in_str:
             return str(self.pages[self.page_display]) + "\n " + \
                    str(self.page_display+1) + "/" + str(len(self.pages))
@@ -589,7 +588,7 @@ class Inventory:
         ])
 
     def __add__(self, other: Union[List[Item], Item]):
-        """ Add a single item or list of items to the inventory """
+        """ Add a single item or list of items to the inventory. """
         inv_copy = copy.deepcopy(self)
         if type(other) == Item:
             # add a single item
@@ -608,7 +607,7 @@ class Inventory:
         return inv_copy
 
     def __sub__(self, other: Union[List[Item], Item]):
-        """ Remove items from the inventory """
+        """ Remove items from the inventory. """
         inv_copy = copy.deepcopy(self)
         if type(other) == Item:
             # remove a single item
