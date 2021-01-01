@@ -11,6 +11,7 @@ import warnings
 class CurrencyException(Exception):
     """ Currency related exception. Allows a more narrow scope for error handling. """
     def __init__(self, cause: Union[Wallet, CurrencySystem] = None, msg: str = None):
+        """ Currency related exception. Allows a more narrow scope for error handling. """
         if msg is None:
             msg = "An error occurred with Currency System:\n"
             super(CurrencyException, self).__init__(msg)
@@ -153,27 +154,35 @@ class Wallet:
         return amount
 
     def __add__(self, other: Wallet):
+        """ Returns self + other in terms of currency amounts """
         return Wallet(curr_sys=self.curr_sys, amount=(self.unstack() + other.unstack()))
 
     def __sub__(self, other: Wallet):
+        """ Returns self - other in terms of currency amounts """
         return Wallet(curr_sys=self.curr_sys, amount=(self.unstack() - other.unstack()))
 
     def __gt__(self, other):
+        """ Returns self > other in terms of currency amounts """
         return self.unstack().__gt__(other.unstack())
 
     def __lt__(self, other):
+        """ Returns self < other in terms of currency amounts """
         return self.unstack().__lt__(other.unstack())
 
     def __ge__(self, other):
+        """ Returns self >= other in terms of currency amounts """
         return self.unstack().__ge__(other.unstack())
 
     def __le__(self, other):
+        """ Returns self <= other in terms of currency amounts """
         return self.unstack().__le__(other.unstack())
 
     def __eq__(self, other):
+        """ Returns self == other in terms of currency amounts """
         return self.unstack().__eq__(other.unstack())
 
     def __ne__(self, other):
+        """ Returns self != other in terms of currency amounts """
         return self.unstack().__ne__(other.unstack())
 
 

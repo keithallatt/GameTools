@@ -1,6 +1,6 @@
 import _curses
 import curses
-from MapSystem.map import BlankSystem
+from MapSystem.map import Map, BlankSystem
 from pynput import keyboard
 from PIL import Image, ImageDraw, ImageFont
 import numpy as np
@@ -87,14 +87,19 @@ If not running in Pycharm:
 
 
 def start_game_sys(game_queue: list):
+    """ Start the game system with the given list. """
     GameSysIO.game_queue = game_queue
     GameSysIO.running = True
-    game_thread = Thread(target=GameSysIO.get_game_timer())
+    game_thread = Thread(target=GameSysIO.game_timer)
     game_thread.start()
 
 
 class GameSysIO:
+    """ General IO for game system. """
     def __init__(self):
+        """ Initialize curses and hide the cursor. The methods of this
+            new instantiated object are those that the key listener events
+            will be passed to. """
         self.console = curses.initscr()  # initialize is our playground
         curses.curs_set(0)
         self.exception = None
@@ -103,15 +108,23 @@ class GameSysIO:
     game_queue = []
 
     def on_press(self, key: keyboard.Key):
+        """ On a key press, how to handle the rising edge (press) """
         pass
 
     def on_release(self, key: keyboard.Key):
+        """ On a key press, how to handle the falling edge (release) """
         pass
 
     def draw_init(self):
+        """ Draw the initial display / console. This will be called at the
+            end of the initialization of the new GameSysIO object to start
+             the system with something displayed on the console. """
         pass
 
     def restart(self):
+        """ Restart an ended GameSysIO object after control was given to a
+            new object. This could be for pausing purposes, or as a saved
+            state. """
         self.console.clear()
         self.draw_init()
         self.console.refresh()
@@ -121,7 +134,10 @@ class GameSysIO:
             listener.join()
 
     @staticmethod
-    def _game_timer():
+    def game_timer():
+        """ The main game loop. This function is what drives event handling. As GameSysIO objects
+            load additional systems in, they pause themselves, allowing themselves to be removed
+            from the queue and allow the next system control. """
         while True:
             if len(GameSysIO.game_queue) > 0:
                 next_sys = GameSysIO.game_queue.pop(0)
@@ -133,13 +149,12 @@ class GameSysIO:
             else:
                 exit(0)
 
-    @classmethod
-    def get_game_timer(cls):
-        return cls._game_timer
-
 
 class TitleSysIO(GameSysIO):
+    """ Initialize a title screen IO system. Displays ascii art of the
+        game title or particular menu. """
     def __init__(self, title: str, option_choices: list[str] = None, option_choice: int = 0):
+        """ Create a title screen or menu. """
         super().__init__()
 
         self.art = ascii_art(title, shadow=True)
@@ -160,6 +175,7 @@ class TitleSysIO(GameSysIO):
             listener.join()
 
     def draw_init(self):
+        """ Draw the menu with the default option selected """
         self.console.clear()
 
         for i in range(len(self.board)):
@@ -172,6 +188,7 @@ class TitleSysIO(GameSysIO):
         self.console.refresh()
 
     def on_press(self, key: keyboard.Key):
+        """ Check if the user is choosing a new option (up / down arrow keys) """
         try:
             self.console.addstr(len(self.board)+2+self.option_choice, 1, " ")
 
@@ -192,6 +209,7 @@ class TitleSysIO(GameSysIO):
             return False
 
     def on_release(self, key: keyboard.Key):
+        """ Check what option the user choose. """
         if key == keyboard.Key.enter:
             if self.option_choices[self.option_choice] == "Quit":
                 # Stop listener
@@ -216,7 +234,10 @@ class TitleSysIO(GameSysIO):
 
 
 class MapIO(GameSysIO):
-    def __init__(self, main_map: BlankSystem, x_loc: int, y_loc: int):
+    """ Create the IO system for a general map. This will be used for general walking around. """
+    def __init__(self, main_map: Map, x_loc: int, y_loc: int):
+        """ Generate a walkable area map for the user to walk around.
+            Default location is provided """
         super().__init__()
 
         self.main_map = main_map
@@ -239,6 +260,7 @@ class MapIO(GameSysIO):
             listener.join()
 
     def draw_init(self):
+        """ Draw the map and initial location of the user """
         self.console.clear()
 
         board = str(self.main_map).split("\n")
@@ -250,6 +272,7 @@ class MapIO(GameSysIO):
         self.console.refresh()
 
     def on_press(self, key: keyboard.Key):
+        """ Check to see if the user is moving (arrow keys) """
         try:
             new_x, new_y = self.x_loc, self.y_loc
 
@@ -269,6 +292,7 @@ class MapIO(GameSysIO):
                 new_y += 1
                 self.char = "vv"
 
+            # bound checking
             if new_x < 0:
                 new_x = 0
             if new_y < 0:
@@ -292,8 +316,9 @@ class MapIO(GameSysIO):
             return False
 
     def on_release(self, key: keyboard.Key):
+        """ Check to see if the user is pausing. """
         if key == keyboard.Key.esc:
-            GameSysIO.game_queue.append((TitleSysIO, ("Game", ["Continue", "Quit"])))
+            GameSysIO.game_queue.append((TitleSysIO, ("Pause", ["Continue", "Quit"])))
             GameSysIO.game_queue.append(self)
             self.exit_code = 0
             self.console.clear()
@@ -302,4 +327,8 @@ class MapIO(GameSysIO):
 
 
 if __name__ == "__main__":
+    # TODO: - make each kind of system, like MapSysIO, Title, Combat, Conversation, ...
+    #  that uses each kind of object. Each object should be able to link in a 1-way or
+    #  reversible way, like either transports to a new location (1-way) or links to a
+    #  pause menu or conversation (reversible).
     start_game_sys([(TitleSysIO, ("Game",))])

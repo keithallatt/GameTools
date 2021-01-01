@@ -7,6 +7,7 @@ import inspect
 class PythonDocs:
     @staticmethod
     def generate_python_docstrings(thing):
+        """ Get docstrings from object but return an empty string if no docstrings exist. """
         if thing.__doc__ is not None:
             return thing.__doc__
         else:
@@ -14,10 +15,9 @@ class PythonDocs:
 
     @staticmethod
     def generate_class_python_docs(cls):
+        """ Generate the portion of the Python Docs relating to this particular class. """
         class_name, class_ref = cls
-
         class_members = inspect.getmembers(class_ref, predicate=inspect.isfunction)
-
         class_members = [m for m in class_members if m[1].__module__ == class_ref.__module__]
 
         yield "<div class=\"class_name\">" + class_name + "</div>\n"
@@ -42,8 +42,9 @@ class PythonDocs:
             yield "</table><br />\n"
 
     @staticmethod
-    def generate_file_python_docs():
-        working_dir = os.sep.join(os.getcwd().split(os.sep)[:-1]) + os.sep
+    def generate_file_python_docs(parent_level_up: int = 0):
+        """ Generate Python Docs for this project. """
+        working_dir = os.sep.join(os.getcwd().split(os.sep)[:-parent_level_up]) + os.sep
 
         def add_module_path(sd):
             """ Provided sd is a folder within the current working directory, and that folder is
@@ -83,6 +84,7 @@ class PythonDocs:
 
     @staticmethod
     def generate_css_python_docs():
+        """ Generate the CSS required for the Python Docs html file. """
         yield "body {background-color: #f5f5dc;}\n"
         yield "table, th, td { border: 1px solid black; }\n"
         yield "td {\n\tpadding-top: 5px; \n\tpadding-right: 5px;"
@@ -91,7 +93,8 @@ class PythonDocs:
         yield ".class_name { color: #56563e; font-size: 15pt; font-weight: bold;}\n"
 
     @staticmethod
-    def generate_python_docs():
+    def generate_python_docs(parent_level_up: int = 0):
+        """ Write the CSS and HTML to file to view the Python Docs. """
         with open("python_doc_out.html", 'w') as output_html:
             output_html.write("<!DOCTYPE html>\n<html>\n<head>\n<style>\n")
             for chunk in PythonDocs.generate_css_python_docs():
@@ -100,7 +103,7 @@ class PythonDocs:
                 except TypeError:
                     print(chunk)
             output_html.write("\n</style>\n</head>\n<body>")
-            for chunk in PythonDocs.generate_file_python_docs():
+            for chunk in PythonDocs.generate_file_python_docs(parent_level_up=parent_level_up):
                 try:
                     output_html.write(chunk)
                 except TypeError:
@@ -109,4 +112,4 @@ class PythonDocs:
 
 
 if __name__ == "__main__":
-    PythonDocs.generate_python_docs()
+    PythonDocs.generate_python_docs(parent_level_up=1)

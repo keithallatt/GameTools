@@ -22,6 +22,7 @@ class RecursionLimit:
 class MapException(Exception):
     """ General Map exception for narrower exception handing cases """
     def __init__(self, map_obj, msg=None):
+        """ General Map exception for narrower exception handing cases """
         if msg is None:
             # Set some default useful error message
             msg = "An error occurred with Map:"
@@ -33,11 +34,13 @@ class MapException(Exception):
 class Map:
     """ General Map type object """
     def __init__(self, width, height, *args):
+        """ Generate a generic map of particular width and height. """
         self.width = width
         self.height = height
         self.dims = (width, height)
         self.args = args
-        self.map = None
+        self.map = [[args[0] if len(args) > 0 else "default"
+                     for _ in range(width)] for __ in range(height)]
 
         self.MAP_CHARS = {
             "default": "??",
@@ -63,8 +66,11 @@ class Map:
 
 
 class MazeSystem(Map):
-    """ A Maze map of size :arg width / :arg height """
+    """ A Maze map of size width by height in terms of cells (not tiles) """
     def __init__(self, width, height, *args):
+        """ Generate a map of a maze with a particular width and height in terms
+            of rows and columns of the actual maze, since the map requires tiles
+            to provide the walkable area. """
         super().__init__(width * 2 + 1, height * 2 + 1, *args)
         limit = 1000
         max_limit = 10000
@@ -123,8 +129,6 @@ class BlankSystem(Map):
     def __init__(self, width, height, *args):
         """ Create a blank map """
         super().__init__(width, height, *args)
-        self.map = [[args[0] if len(args) > 0 else "default"
-                     for _ in range(width)] for __ in range(height)]
 
     def draw_rect_to_map(self, character, x_location, y_location, w, h):
         """ draw a rectangle to the map, using a specific character """
@@ -157,7 +161,6 @@ class BlankSystem(Map):
 
 
 if __name__ == "__main__":
-    # TODO: Make classes more object oriented and encapsulated.
     blank_map = BlankSystem(10, 10, "WALKABLE")
 
     blank_map.draw_rect_to_map("WALL", 0, 0, 10, 10)

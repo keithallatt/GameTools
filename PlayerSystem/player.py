@@ -7,6 +7,14 @@ from ansiwrap import *
 from typing import Type
 
 
+class PlayerException(Exception):
+    """ Basic exception for errors raised by the player / point system """
+    def __init__(self, msg: str = None):
+        """ Basic exception for errors raised by the player / point system """
+        super().__init__(msg)
+        self.msg = msg
+
+
 class PointSystem:
     """ Represents a generalized point system.
         Can be used for experience (ExpSys)
@@ -140,13 +148,6 @@ class HealthSys(PointSystem):
 
         return '|'+u'\u2588' * math.ceil(bar_length * self.hp / self.max_hp) + \
                " " * (bar_length - math.ceil(bar_length * self.hp / self.max_hp)) + "|"
-
-
-class PlayerException(Exception):
-    """ Basic exception for errors raised by the player / point system """
-    def __init__(self, msg: str = None):
-        super().__init__(msg)
-        self.msg = msg
 
 
 class PlayerSystem:

@@ -13,6 +13,7 @@ from InventorySystem.currency import Wallet, PriceRegistry
 class InventoryException(Exception):
     """ Basic exception for errors raised by the inventory system """
     def __init__(self, inventory: Union[InventorySystem, Item, None], msg=None):
+        """ Basic exception for errors raised by the inventory system """
         if msg is None:
             msg = "An error occurred with Inventory:\n%s" % inventory.pprint_inv()
             super(InventoryException, self).__init__(msg)
