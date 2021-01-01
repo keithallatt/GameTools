@@ -8,11 +8,12 @@ import tokenize
 import inspect
 import importlib
 import textwrap
+from pathlib import Path
 
 length_of_dash = 84
 
 
-def statistics(condensed=False):
+def statistics(source: str, condensed: bool = False):
     """ Generate statistics about the project.
          - Number of files scanned,
          - Number of lines of text,
@@ -109,7 +110,10 @@ def statistics(condensed=False):
 
         return lines, source_loc, files
 
-    working_dir = os.sep.join(os.getcwd().split(os.sep)[:-1]) + os.sep
+    # working_dir = os.sep.join(os.getcwd().split(os.sep)[:-1]) + os.sep
+    working_dir = source
+    if working_dir[-1] != os.sep:
+        working_dir += os.sep
 
     def add_module_path(sd):
         """ Provided sd is a folder within the current working directory, and that folder is
@@ -157,9 +161,12 @@ def statistics(condensed=False):
     print("Total lines of code: " + str(source_lines))
 
 
-def run_all_tests():
+def run_all_tests(source: str):
     # working dir needs to be */GameTools
-    working_dir = os.sep.join(os.getcwd().split(os.sep)[:-1]) + os.sep
+    # working_dir = os.sep.join(os.getcwd().split(os.sep)[:-1]) + os.sep
+    working_dir = source
+    if working_dir[-1] != os.sep:
+        working_dir += os.sep
 
     def add_module_path(sd):
         """ Provided sd is a folder within the current working directory, and that folder is
@@ -216,19 +223,27 @@ def run_all_tests():
 if __name__ == "__main__":
     condensed_flag = "--condensed" in sys.argv[1:] or "-c" in sys.argv[1:]
 
+
+    # Expecting to be run in TestRunner package
+    source_path = Path(__file__).resolve()
+    source_dir = str(source_path.parent.parent)
+
+    if not source_dir in sys.path:
+        sys.path.append(source_dir)
+
     output_file = open("runner_results.txt", 'w')
     io_stream = StringIO()
 
     # capture all output so it can be preprocessed and saved to file.
     sys.stdout = io_stream
 
-    runner_result, test_result = run_all_tests()
+    runner_result, test_result = run_all_tests(source=source_dir)
 
     m = re.match(r"<unittest\.runner\.TextTestResult run=(\d+) errors=(\d+) failures=(\d+)>",
                  str(runner_result))
     run, errors, failures = m.groups()
 
-    statistics(condensed=condensed_flag)
+    statistics(condensed=condensed_flag, source=source_dir)
 
     print("-" * length_of_dash)
     print("Running test suite ... ")
@@ -259,9 +274,8 @@ if __name__ == "__main__":
 
     output_lines = [line.join(output_line_format(line)) for line in output_lines]
     output_lines = [output_lines[0].replace("\u251C", "\u250C").replace("\u2524", "\u2510")] + \
-                   output_lines[1:-1] + \
+        output_lines[1:-1] + \
                    [output_lines[-1].replace("\u251C", "\u2514").replace("\u2524", "\u2518")]
-
 
     output = "\n".join(output_lines).replace("-", "\u2500")
 
