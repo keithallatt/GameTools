@@ -5,6 +5,7 @@ import inspect
 
 
 class PythonDocs:
+    """ HTML version of the help function, but a focus on the docstrings. """
     @staticmethod
     def generate_python_docstrings(thing):
         """ Get docstrings from object but return an empty string if no docstrings exist. """
