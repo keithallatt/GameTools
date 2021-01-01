@@ -7,6 +7,9 @@ from io import StringIO
 import tokenize
 import inspect
 import importlib
+import textwrap
+
+length_of_dash = 84
 
 
 def statistics(condensed=False):
@@ -15,6 +18,7 @@ def statistics(condensed=False):
          - Number of lines of text,
          - Number of source lines of code
     """
+
     def remove_comments_and_docstrings(source):
         """ Modified slightly from:
         https://stackoverflow.com/questions/1769332/script-to-remove-python-comments-docstrings
@@ -57,8 +61,8 @@ def statistics(condensed=False):
             return lines, source_loc, files
 
         if show_header:
-            print('{:>10} |{:>10} |{:>10} | {:<40}'.format('RAW', 'S.L.O.C.', 'TOTAL', 'FILE'))
-            print('{:->11}|{:->11}|{:->11}|{:->40}'.format('', '', '', ''))
+            print('{:>10} |{:>10} |{:>10} | {:<44}'.format('RAW', 'S.L.O.C.', 'TOTAL', 'FILE'))
+            print('{:->11}\u253C{:->11}\u253C{:->11}\u253C{:->48}'.format('', '', '', ''))
 
         for thing in os.listdir(start):
             thing = os.path.join(start, thing)
@@ -67,7 +71,7 @@ def statistics(condensed=False):
                     if thing.endswith("__init__.py"):
                         # see if the file is worth reading
                         if len([line for line in open(thing, 'r').readlines() if
-                               len(line.strip()) > 0]) == 0:
+                                len(line.strip()) > 0]) == 0:
                             continue
 
                     with open(thing, 'r') as f:
@@ -121,15 +125,22 @@ def statistics(condensed=False):
     total_files = 0
     source_lines = 0
 
-    length_of_dash = 76
-
     header = True
+    first = True
 
     for folder in folders:
-        if not condensed:
-            print("-"*length_of_dash)
+        if condensed and first:
+            print('{:->11}\u252C{:->11}\u252C{:->11}\u252C{:->48}'.format('', '', '', ''))
+            first = False
+        elif not condensed:
+            if first:
+                print("-" * length_of_dash)
+                first = False
+            else:
+                print('{:->11}\u2534{:->11}\u2534{:->11}\u2534{:->48}'.format('', '', '', ''))
+
             print(f"Counting {working_dir.split(os.sep)[-2] + os.sep + folder}")
-            print("-"*length_of_dash)
+            print('{:->11}\u252C{:->11}\u252C{:->11}\u252C{:->48}'.format('', '', '', ''))
 
         count_lines_result = count_lines(start=working_dir + folder, lines=total_lines,
                                          source_loc=source_lines, files=total_files,
@@ -139,7 +150,7 @@ def statistics(condensed=False):
         if condensed and header:
             header = False
 
-    print("-"*length_of_dash)
+    print('{:->11}\u2534{:->11}\u2534{:->11}\u2534{:->48}'.format('', '', '', ''))
 
     print("Total number of files: " + str(total_files))
     print("Total lines in files: " + str(total_lines))
@@ -165,7 +176,7 @@ def run_all_tests():
     # test_<class_name>.py and add to a list of names
     list_of_names = []
     for folder in folders:
-        for file in os.listdir(working_dir+folder):
+        for file in os.listdir(working_dir + folder):
             if file.startswith("test_") and file.endswith(".py"):
                 file_path = folder + os.sep + file
                 module_path = folder + "." + file[:-3]
@@ -208,7 +219,8 @@ if __name__ == "__main__":
     output_file = open("runner_results.txt", 'w')
     io_stream = StringIO()
 
-    #sys.stdout = io_stream
+    # capture all output so it can be preprocessed and saved to file.
+    sys.stdout = io_stream
 
     runner_result, test_result = run_all_tests()
 
@@ -218,14 +230,42 @@ if __name__ == "__main__":
 
     statistics(condensed=condensed_flag)
 
-    print("-"*70)
+    print("-" * length_of_dash)
     print("Running test suite ... ")
-    print("-"*70)
+    print("-" * length_of_dash)
     print(test_result)
     print("Tests run: %s\nErrors: %s\nFailures: %s\n\n" % (run, errors, failures))
+    print("-" * length_of_dash)
 
     sys.stdout = sys.__stdout__
-    print(io_stream.getvalue().replace("ok", "ok\n"))
+
+    output = io_stream.getvalue()
+
+    output_lines = output.split("\n")
+
+    output_lines = [line.rstrip() for line in output_lines]
+
+    output_lines = ["-" * length_of_dash if line.replace("-", "").strip() == ""
+                                            and len(line.strip()) > 0 else line for line in
+                    output_lines]
+
+    output_lines = sum([textwrap.wrap(line, width=length_of_dash) for line in output_lines], [])
+    output_lines = ("\n".join(output_lines).replace("ok", "ok\n")).split("\n")
+
+    output_lines = [line + " " * (length_of_dash - len(line)) for line in output_lines]
+
+    def output_line_format(l):
+        return [u"\u251C-", "-\u2524"] if l.startswith("----") else ["\u2502 ", " \u2502"]
+
+    output_lines = [line.join(output_line_format(line)) for line in output_lines]
+    output_lines = [output_lines[0].replace("\u251C", "\u250C").replace("\u2524", "\u2510")] + \
+                   output_lines[1:-1] + \
+                   [output_lines[-1].replace("\u251C", "\u2514").replace("\u2524", "\u2518")]
+
+
+    output = "\n".join(output_lines).replace("-", "\u2500")
+
+    print(output)
 
     ansi_escape = re.compile(r'\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])')
     to_file = ansi_escape.sub('', io_stream.getvalue())
