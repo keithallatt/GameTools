@@ -58,8 +58,12 @@ class PriceRegistry:
         """ Add a new entry to the registry """
         self.registry.update({item_name: item_price})
 
-    def save_to_file(self):
+    def save_to_file(self, read_file_path: str = None):
         """ Save the registry to file """
+        if read_file_path is not None:
+            self.read_file_path = read_file_path
+        if self.read_file_path is None:
+            raise CurrencyException(msg="No read file provided.")
         with open(self.read_file_path, 'w') as file:
             file.write(json.dumps(self.registry, indent=4, sort_keys=True))
             file.close()
@@ -127,16 +131,23 @@ class Wallet:
                                                    lowest_denomination)
             new_wallet[denomination] = amount
 
+        # ensure old value and new value are the same.
+
+        if self.unstack() != self.unstack(wallet=new_wallet):
+            raise CurrencyException(msg="Auto stack method created differently valued wallet.")
+
         self.wallet = new_wallet
 
-    def unstack(self):
+    def unstack(self, wallet=None):
         """ Return the amount this wallet is worth in it's lowest valued denomination.
             Inverse of auto_stack method."""
+        if wallet is None:
+            wallet = self.wallet
         lowest_denomination = self.curr_sys.denominations[-1]
         amount = 0
         for denomination in self.curr_sys.denominations:
             amount += self.curr_sys.convert(denomination,
-                                            self.wallet[denomination],
+                                            wallet[denomination],
                                             lowest_denomination)
 
         return amount
