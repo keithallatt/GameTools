@@ -30,6 +30,7 @@ def remove_comments_and_docstrings(source_code):
     prev_tok_type = tokenize.INDENT
     last_line_no = -1
     last_col = 0
+
     for tok in tokenize.generate_tokens(io_obj.readline):
         token_type = tok[0]
         token_string = tok[1]
@@ -51,6 +52,7 @@ def remove_comments_and_docstrings(source_code):
         prev_tok_type = token_type
         last_col = end_col
         last_line_no = end_line
+
     return [line for line in out.splitlines() if line.strip()]
 
 

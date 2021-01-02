@@ -1,7 +1,7 @@
 from __future__ import annotations
 import _curses
 import curses
-from MapSystem.map import Map, BlankSystem
+from MapSystem.map import Map
 from pynput import keyboard
 from PIL import Image, ImageDraw, ImageFont
 import numpy as np
@@ -152,13 +152,15 @@ class GameTrigger:
     class MapSysRelocationTrigger(_GameSysTrigger):
         """ Trigger for changing locations within the same map. """
         def __init__(self, map_obj: MapIO, trip_location: Tuple[int, int],
-                     destination: Tuple[int, int]):
+                     destination: Tuple[int, int], bidirectional: bool = False):
             """ Create a relocation trigger """
             def trigger(map_object):
-                return (map_object.x_loc, map_object.y_loc) == trip_location
+                return (map_object.x_loc, map_object.y_loc) == trip_location or \
+                    ((map_object.x_loc, map_object.y_loc) == destination and bidirectional)
 
             super().__init__(map_obj, trigger)
 
+            self.trip_location = trip_location
             self.destination = destination
 
         def handle(self, game_sys: GameSysIO):
@@ -166,7 +168,11 @@ class GameTrigger:
             try:
                 trigger_value = self.trigger(game_sys)
                 if trigger_value and type(trigger_value) == bool:
-                    self.target.x_loc, self.target.y_loc = self.destination
+                    if (self.target.x_loc, self.target.y_loc) == self.destination:
+                        self.target.x_loc, self.target.y_loc = self.trip_location
+                    else:
+                        self.target.x_loc, self.target.y_loc = self.destination
+
                     # redraw character.
                     game_sys.console.clear()
                     game_sys.draw_init()
@@ -302,8 +308,10 @@ class TitleSysIO(GameSysIO):
             if key == keyboard.Key.down:
                 self.option_choice = min(self.option_choice+1, len(self.option_choices) - 1)
 
-            self.console.addstr(len(self.board)+2+self.option_choice, 1, ">")
+            if key == keyboard.Key.enter:
+                self.chosen_option = self.option_choices[self.option_choice]
 
+            self.console.addstr(len(self.board)+2+self.option_choice, 1, ">")
             self.console.refresh()
 
         except _curses.error as e:
@@ -316,10 +324,10 @@ class TitleSysIO(GameSysIO):
     def on_release(self, key: keyboard.Key):
         """ Check what option the user choose. """
         self.chosen = False
-        self.chosen_option = None
-        if key == keyboard.Key.enter:
+        option_same = self.chosen_option == self.option_choices[self.option_choice]
+        if key == keyboard.Key.enter and option_same:
             self.chosen = True
-            self.chosen_option = self.option_choices[self.option_choice]
+
         return self.check_triggers()
 
 
@@ -331,6 +339,7 @@ class MapIO(GameSysIO):
         super().__init__()
 
         self.main_map = main_map
+        self.map_dims = main_map.dims
         self.x_max, self.y_max = main_map.dims
 
         # this can be more streamlined but it's enough for demonstration purposes...
@@ -362,7 +371,7 @@ class MapIO(GameSysIO):
             # if key == keyboard.Key.esc: ## Lags a lot
             if key == keyboard.KeyCode.from_char('p'):
                 self.pause = True
-                return
+                return self.check_triggers()
 
             new_x, new_y = self.x_loc, self.y_loc
 
@@ -383,38 +392,51 @@ class MapIO(GameSysIO):
                 self.char = "vv"
 
             # bound checking
-            if new_x < 0:
-                new_x = 0
-            if new_y < 0:
-                new_y = 0
+            new_x = 0 if new_x < 0 else new_x
+            new_y = 0 if new_y < 0 else new_y
+            new_x = self.x_max - 1 if new_x >= self.x_max else new_x
+            new_y = self.y_max - 1 if new_y >= self.y_max else new_y
 
-            if new_x >= self.x_max:
-                new_x = self.x_max - 1
-            if new_y >= self.y_max:
-                new_y = self.y_max - 1
+            moved = (self.x_loc, self.y_loc) != (new_x, new_y)
 
-            if self.main_map.map[new_y][new_x] == "WALKABLE":
+            if self.main_map.is_walkable(self.main_map.map[new_y][new_x]):
                 self.x_loc, self.y_loc = new_x, new_y
 
             self.console.addstr(self.y_loc, self.x_loc * 2, self.char)
             self.console.refresh()
 
-            return self.check_triggers()
+            if moved:
+                return self.check_triggers()
         except _curses.error:
             self.console.clear()
             curses.endwin()
             self.exit_code = 1
             return False
 
-    def link_relocation(self, trip_location: Tuple[int, int], destination: Tuple[int, int]):
-        self.triggers.append(GameTrigger.MapSysRelocationTrigger(self, trip_location, destination))
+    def link_relocation(self, trip_location: Tuple[int, int], destination: Tuple[int, int],
+                        bidirectional: bool = False):
+        def mod_location(x, y, w, h):
+            return x % w, y % h
+
+        self.triggers.append(
+            GameTrigger.MapSysRelocationTrigger(self,
+                                                mod_location(*trip_location, *self.map_dims),
+                                                mod_location(*destination, *self.map_dims),
+                                                bidirectional))
+
+        self.main_map.draw_to_map("PORTAL", *mod_location(*trip_location, *self.map_dims))
+        self.main_map.draw_to_map("PORTAL", *mod_location(*destination, *self.map_dims))
 
 
 if __name__ == "__main__":
     main_title = TitleSysIO(title="Game", option_choices=["Start", "Quit"])
     pause_title = TitleSysIO(title="Pause", option_choices=["Continue", "Return to menu"],
                              font_size=12)
-    map_sys = MapIO(BlankSystem(10, 10, "WALKABLE"), 1, 1)
+
+    map_system = Map(10, 5, "WALKABLE")
+    map_system.declare_map_char_block("PORTAL", "[]", walkable=True)
+
+    map_sys = MapIO(map_system, 1, 1)
 
     main_title.link_sys_change([], lambda x: x.chosen and x.chosen_option == "Quit")
     main_title.link_sys_change([map_sys], lambda x: x.chosen and x.chosen_option == "Start")
@@ -425,6 +447,6 @@ if __name__ == "__main__":
 
     map_sys.link_sys_change([pause_title], lambda x: x.pause, transient=True)
 
-    map_sys.link_relocation((0, 0), (5, 5))
+    map_sys.link_relocation((0, 0), (-1, -1), bidirectional=True)
 
     start_game_sys([main_title])

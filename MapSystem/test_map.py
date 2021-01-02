@@ -1,7 +1,6 @@
 from unittest import TestCase
 # need MapSystem.map since suite outside inventory system folder
-from MapSystem.map import Map, MazeSystem, BlankSystem, MapException
-import MapSystem.map as map_sys
+from MapSystem.map import Map, MazeSystem, MapException
 
 
 class MapTest(TestCase):
@@ -10,10 +9,10 @@ class MapTest(TestCase):
         """ Test if copying map works using draw_sub_map """
         for s in range(2, 6):
             for k in range(100):
-                map_outer = BlankSystem(20, 20)
+                map_outer = Map(20, 20)
                 map_inner = MazeSystem(s, s)
 
-                BlankSystem.draw_sub_map(map_outer, map_inner, 0, 0)
+                Map.draw_sub_map(map_outer, map_inner, 0, 0)
 
                 for i in range(map_outer.width):
                     for j in range(map_outer.height):
@@ -27,7 +26,7 @@ class MapTest(TestCase):
         with self.assertRaises(MapException) as context:
             example_map.set_map_char_block(character="ObviouslyWrong")
 
-        self.assertTrue('Color key non-existent' in
+        self.assertTrue('Character key non-existent' in
                         context.exception.msg)
 
 

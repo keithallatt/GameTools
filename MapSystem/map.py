@@ -28,13 +28,26 @@ class Map:
             "default": "??",
             "WALKABLE": "  ",
             "WALL": u'\u2588' * 2,
-            "BOX": u'[]'
         }
+
+        self.WALKABLE = {
+            "default": True,
+            "WALKABLE": True,
+            "WALL": False
+        }
+
+    def declare_map_char_block(self, block: str, character: str, walkable: bool = False):
+        """ Declare a new entry of MAP_CHARS """
+        if block in self.MAP_CHARS.keys():
+            raise MapException(None, msg="Re-declaring existing map character key")
+
+        self.MAP_CHARS[block] = character
+        self.WALKABLE[block] = walkable
 
     def set_map_char_block(self, block: str = "", character: str = "#"):
         """ Set entry of MAP_CHARS """
         if block not in self.MAP_CHARS.keys():
-            raise MapException(None, msg="Color key non-existent")
+            raise MapException(None, msg="Character key non-existent")
 
         self.MAP_CHARS[block] = character
 
@@ -45,6 +58,38 @@ class Map:
                 [self.MAP_CHARS[x] for x in line]
             ) for line in self.map]
         )
+
+    def draw_rect_to_map(self, character, x_location, y_location, w, h):
+        """ draw a rectangle to the map, using a specific character """
+        # TODO: make fill rect method
+        for i in range(x_location, x_location + w):
+            self.draw_to_map(character, i, y_location)
+            self.draw_to_map(character, i, y_location + h - 1)
+        for i in range(y_location, y_location + h):
+            self.draw_to_map(character, x_location, i)
+            self.draw_to_map(character, x_location + w - 1, i)
+
+    def draw_to_map(self, character_key, x_location, y_location):
+        """ draw a cell to the map, using a specific character """
+        if list(self.MAP_CHARS.keys()).index(character_key) != -1:
+            # character is in the MAP_CHARS area
+            # map_obj -> Map
+            # map_obj.map -> list[list[int]]
+
+            self.map[y_location][x_location] = character_key
+
+    def draw_sub_map(self, sub_map, x_location, y_location):
+        """ draw a portion or all of a sub-map to the map """
+        for row in range(len(sub_map.map)):
+            for col in range(len(sub_map.map[row])):
+                try:
+                    self.map[x_location+col][y_location+row] = sub_map.map[col][row]
+                except IndexError:
+                    # just continue off
+                    pass
+
+    def is_walkable(self, block):
+        return self.WALKABLE.get(block, False)
 
 
 class MazeSystem(Map):
@@ -120,43 +165,5 @@ class MazeSystem(Map):
         ]
 
 
-class BlankSystem(Map):
-    """ Represents a blank map, fully customizable """
-    def __init__(self, width, height, *args):
-        """ Create a blank map """
-        super().__init__(width, height, *args)
-
-    def draw_rect_to_map(self, character, x_location, y_location, w, h):
-        """ draw a rectangle to the map, using a specific character """
-        # TODO: make fill rect method
-        for i in range(x_location, x_location + w):
-            self.draw_to_map(character, i, y_location)
-            self.draw_to_map(character, i, y_location + h - 1)
-        for i in range(y_location, y_location + h):
-            self.draw_to_map(character, x_location, i)
-            self.draw_to_map(character, x_location + w - 1, i)
-
-    def draw_to_map(self, character_key, x_location, y_location):
-        """ draw a cell to the map, using a specific character """
-        if list(self.MAP_CHARS.keys()).index(character_key) != -1:
-            # character is in the MAP_CHARS area
-            # map_obj -> Map
-            # map_obj.map -> list[list[int]]
-
-            self.map[y_location][x_location] = character_key
-
-    def draw_sub_map(self, sub_map, x_location, y_location):
-        """ draw a portion or all of a sub-map to the map """
-        for row in range(len(sub_map.map)):
-            for col in range(len(sub_map.map[row])):
-                try:
-                    self.map[x_location+col][y_location+row] = sub_map.map[col][row]
-                except IndexError:
-                    # just continue off
-                    pass
-
-
 if __name__ == "__main__":
-    maze = MazeSystem(100, 10)
-
-    print(maze)
+    pass
