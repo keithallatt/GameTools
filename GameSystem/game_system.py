@@ -97,84 +97,84 @@ def start_game_sys(game_queue: list):
     game_thread.start()
 
 
-class GameSysTrigger:
-    """ Game system trigger object, used for classifying different triggers. """
-    def __init__(self, target, trigger: Callable):
-        """ Create a generic trigger with a target and trigger. """
-        self.target = target
-        self.trigger = trigger
+class GameTrigger:
+    """ A collection of Game system triggers. """
+    class _GameSysTrigger:
+        """ Game system trigger object, used for classifying different triggers. """
+        def __init__(self, target, trigger: Callable):
+            """ Create a generic trigger with a target and trigger. """
+            self.target = target
+            self.trigger = trigger
 
-    def handle(self, game_sys: GameSysIO):
-        """ Handle the trigger, including checking to see if the trigger callable
-            returns a true value. """
-        pass
-
-
-class GameSysChangeTrigger(GameSysTrigger):
-    """ Trigger for changing game systems, such as from title screen to main game, or
-        to and from a pause menu. """
-    def __init__(self, target: Union[List[GameSysIO], GameSysIO],
-                 trigger: Callable, transient: bool = False, append: bool = False):
-        """ Create a game system change trigger. """
-        super().__init__(target, trigger)
-        self.transient = transient
-        self.append = append
-
-    def handle(self, game_sys: GameSysIO):
-        """ Handle the trigger and change the system if need be. """
-        try:
-            trigger_value = self.trigger(game_sys)
-            if trigger_value and type(trigger_value) == bool:
-                if self.append:
-                    if type(self.target) == list:
-                        GameSysIO.game_queue += self.target[::]
-                    else:
-                        GameSysIO.game_queue.append(self.target)
-                else:
-                    if type(self.target) == list:
-                        GameSysIO.game_queue = self.target[::]
-                    else:
-                        GameSysIO.game_queue = [self.target]
-
-                if self.transient:
-                    GameSysIO.game_queue.append(game_sys)
-
-                game_sys.exit_code = 0
-                game_sys.console.clear()
-                curses.endwin()
-                return False
-        except AttributeError:
-            # attribute error occurs if lambda is not the trigger for the
-            # right type of game system.
+        def handle(self, game_sys: GameSysIO):
+            """ Handle the trigger, including checking to see if the trigger callable
+                returns a true value. """
             pass
 
+    class GameSysChangeTrigger(_GameSysTrigger):
+        """ Trigger for changing game systems, such as from title screen to main game, or
+            to and from a pause menu. """
+        def __init__(self, target: Union[List[GameSysIO], GameSysIO],
+                     trigger: Callable, transient: bool = False, append: bool = False):
+            """ Create a game system change trigger. """
+            super().__init__(target, trigger)
+            self.transient = transient
+            self.append = append
 
-class MapSysRelocationTrigger(GameSysTrigger):
-    """ Trigger for changing locations within the same map. """
-    def __init__(self, map_obj: MapIO, trip_location: Tuple[int, int],
-                 destination: Tuple[int, int]):
-        """ Create a relocation trigger """
-        def trigger(map_object):
-            return (map_object.x_loc, map_object.y_loc) == trip_location
+        def handle(self, game_sys: GameSysIO):
+            """ Handle the trigger and change the system if need be. """
+            try:
+                trigger_value = self.trigger(game_sys)
+                if trigger_value and type(trigger_value) == bool:
+                    if self.append:
+                        if type(self.target) == list:
+                            GameSysIO.game_queue += self.target[::]
+                        else:
+                            GameSysIO.game_queue.append(self.target)
+                    else:
+                        if type(self.target) == list:
+                            GameSysIO.game_queue = self.target[::]
+                        else:
+                            GameSysIO.game_queue = [self.target]
 
-        super().__init__(map_obj, trigger)
+                    if self.transient:
+                        GameSysIO.game_queue.append(game_sys)
 
-        self.destination = destination
+                    game_sys.exit_code = 0
+                    game_sys.console.clear()
+                    curses.endwin()
+                    return False
+            except AttributeError:
+                # attribute error occurs if lambda is not the trigger for the
+                # right type of game system.
+                pass
 
-    def handle(self, game_sys: GameSysIO):
-        """ Handle the trigger and relocate the player. """
-        try:
-            trigger_value = self.trigger(game_sys)
-            if trigger_value and type(trigger_value) == bool:
-                self.target.x_loc, self.target.y_loc = self.destination
-                # redraw character.
-                game_sys.console.clear()
-                game_sys.draw_init()
-                game_sys.console.refresh()
-        except AttributeError:
-            # attribute error occurs if lambda is not the trigger for the
-            # right type of game system.
-            pass
+    class MapSysRelocationTrigger(_GameSysTrigger):
+        """ Trigger for changing locations within the same map. """
+        def __init__(self, map_obj: MapIO, trip_location: Tuple[int, int],
+                     destination: Tuple[int, int]):
+            """ Create a relocation trigger """
+            def trigger(map_object):
+                return (map_object.x_loc, map_object.y_loc) == trip_location
+
+            super().__init__(map_obj, trigger)
+
+            self.destination = destination
+
+        def handle(self, game_sys: GameSysIO):
+            """ Handle the trigger and relocate the player. """
+            try:
+                trigger_value = self.trigger(game_sys)
+                if trigger_value and type(trigger_value) == bool:
+                    self.target.x_loc, self.target.y_loc = self.destination
+                    # redraw character.
+                    game_sys.console.clear()
+                    game_sys.draw_init()
+                    game_sys.console.refresh()
+            except AttributeError:
+                # attribute error occurs if lambda is not the trigger for the
+                # right type of game system.
+                pass
 
 
 class GameSysIO:
@@ -237,7 +237,7 @@ class GameSysIO:
                         transient: bool = False, append: bool = False):
         """ When the trigger is set, change to other, transient being if self is set as a
             return point """
-        self.triggers.append(GameSysChangeTrigger(target, trigger, transient, append))
+        self.triggers.append(GameTrigger.GameSysChangeTrigger(target, trigger, transient, append))
 
     @staticmethod
     def game_timer():
@@ -356,7 +356,7 @@ class MapIO(GameSysIO):
         self.console.refresh()
 
     def on_press(self, key: keyboard.Key):
-        """ Check to see if the user is moving (arrow keys) """
+        """ Check to see if the user is moving (arrow keys), or pausing ('p') """
         try:
             self.pause = False
             # if key == keyboard.Key.esc: ## Lags a lot
@@ -398,18 +398,16 @@ class MapIO(GameSysIO):
 
             self.console.addstr(self.y_loc, self.x_loc * 2, self.char)
             self.console.refresh()
+
+            return self.check_triggers()
         except _curses.error:
             self.console.clear()
             curses.endwin()
             self.exit_code = 1
             return False
 
-    def on_release(self, key: keyboard.Key):
-        """ Check to see if the user is pausing. """
-        return self.check_triggers()
-
     def link_relocation(self, trip_location: Tuple[int, int], destination: Tuple[int, int]):
-        self.triggers.append(MapSysRelocationTrigger(self, trip_location, destination))
+        self.triggers.append(GameTrigger.MapSysRelocationTrigger(self, trip_location, destination))
 
 
 if __name__ == "__main__":

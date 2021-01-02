@@ -2,6 +2,8 @@ import os
 import importlib
 import sys
 import inspect
+from bs4 import BeautifulSoup
+import re
 
 
 class PythonDocs:
@@ -18,14 +20,23 @@ class PythonDocs:
             return ""
 
     @staticmethod
-    def generate_class_python_docs(cls):
+    def generate_class_python_docs(cls, superclass=None):
         """ Generate the portion of the Python Docs relating to this particular class. """
         class_name, class_ref = cls
         class_members = inspect.getmembers(class_ref, predicate=inspect.isfunction)
         class_members = [m for m in class_members if m[1].__module__ == class_ref.__module__]
 
-        yield "<div class=\"class_name\">" + class_name + "</div>\n"
+        subclass_members = inspect.getmembers(class_ref, predicate=inspect.isclass)
+        subclass_members = [m for m in subclass_members if m[1].__module__ == class_ref.__module__]
+
+        if superclass is not None:
+            new_superclass = superclass + "." + class_name
+        else:
+            new_superclass = class_name
+
+        yield "<div class=\"class_name\">" + new_superclass + "</div>\n"
         yield "<div>" + PythonDocs.generate_python_docstrings(class_ref) + "</div>\n"
+        yield "<br />"
 
         if len(class_members) != 0:
             yield "<table style=\"width:100%\">\n"
@@ -45,6 +56,17 @@ class PythonDocs:
                 yield "</td>\n</tr>\n"
 
             yield "</table><br />\n"
+
+        if len(subclass_members) != 0:
+            for subclass in subclass_members:
+                if superclass is not None:
+                    new_superclass = superclass+"."+class_name
+                else:
+                    new_superclass = class_name
+                for line in PythonDocs.generate_class_python_docs(subclass, new_superclass):
+                    yield line
+
+        yield "<br />"
 
     @staticmethod
     def generate_file_python_docs(parent_level_up: int = 0):
@@ -115,8 +137,8 @@ class PythonDocs:
         """ Generate the CSS required for the Python Docs html file. """
         yield "body {background-color: #f5f5dc;}\n"
         yield "table, th, td { border: 1px solid black; }\n"
-        yield "td {\n\tpadding-top: 5px; \n\tpadding-right: 5px;"
-        yield "\n\tpadding-bottom: 5px;\n\tpadding-left: 10px;\n}\n"
+        yield "td {\npadding-top: 5px; \npadding-right: 5px;"
+        yield "\npadding-bottom: 5px;\npadding-left: 10px;\n}\n"
         yield ".module_name { color: #56563e; font-size: 20pt; font-weight: bold;}\n"
         yield ".class_name { color: #56563e; font-size: 15pt; font-weight: bold;}\n"
 
@@ -124,19 +146,24 @@ class PythonDocs:
     def generate_python_docs(parent_level_up: int = 0):
         """ Write the CSS and HTML to file to view the Python Docs. """
         with open("python_doc_out.html", 'w') as output_html:
-            output_html.write("<!DOCTYPE html>\n<html>\n<head>\n<style>\n")
+            html_string = "<!DOCTYPE html>\n<html>\n<head>\n<style>"
             for chunk in PythonDocs.generate_css_python_docs():
                 try:
-                    output_html.write(chunk)
+                    html_string += chunk
                 except TypeError:
                     print(chunk)
-            output_html.write("\n</style>\n</head>\n<body>")
+            html_string += "\n</style>\n</head>\n<body>"
             for chunk in PythonDocs.generate_file_python_docs(parent_level_up=parent_level_up):
                 try:
-                    output_html.write(chunk)
+                    html_string += chunk
                 except TypeError:
                     print(chunk)
-            output_html.write("\n</body>")
+            html_string += "\n</body>"
+
+            r = re.compile(r'^(\s*)', re.MULTILINE)
+
+            formatted = BeautifulSoup(html_string, 'html.parser').prettify()
+            output_html.write(r.sub(r'\1\1', formatted))
 
 
 if __name__ == "__main__":

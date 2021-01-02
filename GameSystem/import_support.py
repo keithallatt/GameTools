@@ -30,7 +30,7 @@ class ImportSupport:
 
     @staticmethod
     def _install(package):
-        """ Attempt to install package using 'python -m pip install <...>' command.
+        """ Attempt to install package using 'python -m pip install ...' command.
             Returns the success of the installation. """
         try:
             subprocess.check_call([sys.executable, "-m", "pip", "install", package])
@@ -85,7 +85,7 @@ class ImportSupport:
             if os.path.exists(add_module_path(subdir))
         ]
 
-        import_re = re.compile(r'^\s*((import (\w+)( as \w+)?)|(from ([\w.]+) import (\w+|\*)))$')
+        import_re = re.compile(r'^\s*((import (\w+)( as \w+)?)|(from ([\w.]+) import (\w+|\*)))')
 
         # don't allow repeats
         modules_to_import = set()
