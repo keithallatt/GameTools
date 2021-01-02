@@ -13,119 +13,123 @@ from pathlib import Path
 length_of_dash = 84
 
 
-def statistics(source: str, condensed: bool = False):
-    """ Generate statistics about the project.
-         - Number of files scanned,
-         - Number of lines of text,
-         - Number of source lines of code
+def add_module_path(working_dir, sd):
+    """ Provided sd is a folder within the working directory, and that folder is
+        a Python3+ module, format the filename of the __init__.py file """
+    return working_dir + sd + os.sep + "__init__.py"
+
+
+def remove_comments_and_docstrings(source_code):
+    """ Modified slightly from:
+    <a href="
+    https://stackoverflow.com/questions/1769332/script-to-remove-python-comments-docstrings
+    ">Here</a>
+    """
+    io_obj = StringIO(source_code)
+    out = ""
+    prev_tok_type = tokenize.INDENT
+    last_line_no = -1
+    last_col = 0
+    for tok in tokenize.generate_tokens(io_obj.readline):
+        token_type = tok[0]
+        token_string = tok[1]
+        start_line, start_col = tok[2]
+        end_line, end_col = tok[3]
+        if start_line > last_line_no:
+            last_col = 0
+        if start_col > last_col:
+            out += (" " * (start_col - last_col))
+        if token_type == tokenize.COMMENT:
+            pass
+        elif token_type == tokenize.STRING:
+            if prev_tok_type != tokenize.INDENT:
+                if prev_tok_type != tokenize.NEWLINE:
+                    if start_col > 0:
+                        out += token_string
+        else:
+            out += token_string
+        prev_tok_type = token_type
+        last_col = end_col
+        last_line_no = end_line
+    return [line for line in out.splitlines() if line.strip()]
+
+
+def count_lines(start, lines=0, source_loc=0, files=0,
+                show_header=True, begin_start=None, condense=False):
+    """ Modified slightly from:
+    <a href="
+    https://stackoverflow.com/questions/38543709/count-lines-of-code-in-directory-using-python
+    ">Here</a>
     """
 
-    def remove_comments_and_docstrings(source_code):
-        """ Modified slightly from:
-        https://stackoverflow.com/questions/1769332/script-to-remove-python-comments-docstrings
-        """
-        io_obj = StringIO(source_code)
-        out = ""
-        prev_tok_type = tokenize.INDENT
-        last_line_no = -1
-        last_col = 0
-        for tok in tokenize.generate_tokens(io_obj.readline):
-            token_type = tok[0]
-            token_string = tok[1]
-            start_line, start_col = tok[2]
-            end_line, end_col = tok[3]
-            if start_line > last_line_no:
-                last_col = 0
-            if start_col > last_col:
-                out += (" " * (start_col - last_col))
-            if token_type == tokenize.COMMENT:
-                pass
-            elif token_type == tokenize.STRING:
-                if prev_tok_type != tokenize.INDENT:
-                    if prev_tok_type != tokenize.NEWLINE:
-                        if start_col > 0:
-                            out += token_string
-            else:
-                out += token_string
-            prev_tok_type = token_type
-            last_col = end_col
-            last_line_no = end_line
-        return [line for line in out.splitlines() if line.strip()]
-
-    def count_lines(start, lines=0, source_loc=0, files=0,
-                    show_header=True, begin_start=None, condense=False):
-        """ Modified from:
-        https://stackoverflow.com/questions/38543709/count-lines-of-code-in-directory-using-python
-        """
-
-        if start.endswith("__pycache__"):
-            return lines, source_loc, files
-
-        if show_header:
-            print('{:>10} |{:>10} |{:>10} |{:>10} | {:<20}'.format(
-                'Raw', 'Source', 'Total', 'Source', 'File'))
-            print('{:->11}\u253C{:->11}\u253C{:->11}\u253C{:->11}\u253C{:->36}'.format(
-                '', '', '', '', ''))
-
-        in_package = 0
-        for thing in os.listdir(start):
-            thing = os.path.join(start, thing)
-            if os.path.isfile(thing):
-                if thing.endswith('.py'):
-                    if thing.endswith("__init__.py"):
-                        # see if the file is worth reading
-                        # if there is nothing by whitespace in this file, then ignore it.
-                        if len([line for line in open(thing, 'r').readlines() if
-                                len(line.strip()) > 0]) == 0:
-                            continue
-
-                    with open(thing, 'r') as f:
-                        newlines = f.readlines()
-                        source_code_no_comments = \
-                            remove_comments_and_docstrings("\n".join(newlines))
-                        newlines = len(newlines)
-                        source_lines_num = len(source_code_no_comments)
-
-                        source_loc += source_lines_num
-                        in_package += source_lines_num
-                        lines += newlines
-                        files += 1
-
-                        if begin_start is not None:
-                            rel_dir_of_thing = "." + thing.replace(begin_start, '')
-                        else:
-                            rel_dir_of_thing = "." + thing.replace(start, '')
-
-                        if not condense:
-                            print('{:>10} |{:>10} |{:>10} |{:>10} | {:<20}'.format(
-                                newlines, source_lines_num, lines,
-                                source_loc, rel_dir_of_thing))
-
-        if condense:
-            print('{:>10} |{:>10} |{:>10} |{:>10} | {:<30}'.format(
-                lines, source_loc, lines, in_package, start.split(os.sep)[-1]))
-
-        for thing in os.listdir(start):
-            thing = os.path.join(start, thing)
-            if os.path.isdir(thing):
-                lines, source_loc, files = count_lines(thing, lines, source_loc,
-                                                       files, show_header=False,
-                                                       begin_start=start, condense=condense)
-
+    if start.endswith("__pycache__"):
         return lines, source_loc, files
 
+    if show_header:
+        print('{:>10} |{:>10} |{:>10} |{:>10} | {:<20}'.format(
+            'Raw', 'Source', 'Total', 'Source', 'File'))
+        print('{:->11}\u253C{:->11}\u253C{:->11}\u253C{:->11}\u253C{:->36}'.format(
+            '', '', '', '', ''))
+
+    in_package = 0
+    for thing in os.listdir(start):
+        thing = os.path.join(start, thing)
+        if os.path.isfile(thing):
+            if thing.endswith('.py'):
+                if thing.endswith("__init__.py"):
+                    # see if the file is worth reading
+                    # if there is nothing by whitespace in this file, then ignore it.
+                    if len([line for line in open(thing, 'r').readlines() if
+                            len(line.strip()) > 0]) == 0:
+                        continue
+
+                with open(thing, 'r') as f:
+                    newlines = f.readlines()
+                    source_code_no_comments = \
+                        remove_comments_and_docstrings("\n".join(newlines))
+                    newlines = len(newlines)
+                    source_lines_num = len(source_code_no_comments)
+
+                    source_loc += source_lines_num
+                    in_package += source_lines_num
+                    lines += newlines
+                    files += 1
+
+                    if begin_start is not None:
+                        rel_dir_of_thing = "." + thing.replace(begin_start, '')
+                    else:
+                        rel_dir_of_thing = "." + thing.replace(start, '')
+
+                    if not condense:
+                        print('{:>10} |{:>10} |{:>10} |{:>10} | {:<20}'.format(
+                            newlines, source_lines_num, lines,
+                            source_loc, rel_dir_of_thing))
+
+    if condense:
+        print('{:>10} |{:>10} |{:>10} |{:>10} | {:<30}'.format(
+            lines, source_loc, lines, in_package, start.split(os.sep)[-1]))
+
+    for thing in os.listdir(start):
+        thing = os.path.join(start, thing)
+        if os.path.isdir(thing):
+            lines, source_loc, files = count_lines(thing, lines, source_loc,
+                                                   files, show_header=False,
+                                                   begin_start=start, condense=condense)
+
+    return lines, source_loc, files
+
+
+def statistics(source: str, condensed: bool = False):
+    """ Generate statistics about the project, such as the number of files scanned,
+        the number of lines of text, and the number of source lines of code.
+    """
     working_dir = source
     if working_dir[-1] != os.sep:
         working_dir += os.sep
 
-    def add_module_path(sd):
-        """ Provided sd is a folder within the current working directory, and that folder is
-            a Python3+ module, format the filename of the __init__.py file """
-        return working_dir + sd + os.sep + "__init__.py"
-
     folders = [
         subdir for subdir in os.listdir(working_dir)
-        if os.path.exists(add_module_path(subdir))
+        if os.path.exists(add_module_path(working_dir, subdir))
     ]
 
     total_lines = 0
@@ -165,20 +169,16 @@ def statistics(source: str, condensed: bool = False):
 
 
 def run_all_tests(source: str):
+    """ Run all unit tests as found  """
     # working dir needs to be **/GameTools/
     working_dir = source
     if working_dir[-1] != os.sep:
         working_dir += os.sep
 
-    def add_module_path(sd):
-        """ Provided sd is a folder within the current working directory, and that folder is
-            a Python3+ module, format the filename of the __init__.py file """
-        return working_dir + sd + os.sep + "__init__.py"
-
     # get all folders which constitute a python module
     folders = [
         subdir for subdir in os.listdir(working_dir)
-        if os.path.exists(add_module_path(subdir))
+        if os.path.exists(add_module_path(working_dir, subdir))
     ]
 
     # find all python files in those modules that are of the form
@@ -281,9 +281,6 @@ if __name__ == "__main__":
 
     print(output)
 
-    ansi_escape = re.compile(r'\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])')
-    to_file = ansi_escape.sub('', io_stream.getvalue())
-
-    output_file.write(to_file)
+    output_file.write(output)
 
     output_file.close()
