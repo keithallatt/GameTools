@@ -5,6 +5,9 @@ import inspect
 
 
 class PythonDocs:
+    # Percent width
+    method_column_width = 20
+
     """ HTML version of the help function, but a focus on the docstrings. """
     @staticmethod
     def generate_python_docstrings(thing):
@@ -26,7 +29,7 @@ class PythonDocs:
 
         if len(class_members) != 0:
             yield "<table style=\"width:100%\">\n"
-            yield "<tr><th style=\"width:33%\">"
+            yield "<tr><th style=\"width:" + str(PythonDocs.method_column_width)+"%\">"
             yield "Method name"
             yield "</th><th>"
             yield "Description"
@@ -36,11 +39,10 @@ class PythonDocs:
 
             for method in class_members:
                 yield "<tr>\n"
-                yield "<th style=\"width:33%\">\n" + method[0] + "\n</th>\n"
-                yield "<td>\n"
+                yield "<th style=\"width:" + str(PythonDocs.method_column_width)+"%\">\n"
+                yield method[0] + "\n</th>\n<td>\n"
                 yield PythonDocs.generate_python_docstrings(method[1])
-                yield "</td>\n"
-                yield "</tr>\n"
+                yield "</td>\n</tr>\n"
 
             yield "</table><br />\n"
 
@@ -81,6 +83,27 @@ class PythonDocs:
 
             class_members = inspect.getmembers(current_module, inspect.isclass)
             class_members = [m for m in class_members if m[1].__module__ == module]
+
+            function_members = inspect.getmembers(current_module, inspect.isfunction)
+            function_members = [m for m in function_members if m[1].__module__ == module]
+
+            if len(function_members) != 0:
+                yield "<table style=\"width:100%\">\n"
+                yield "<tr><th style=\"width:" + str(PythonDocs.method_column_width)+"%\">"
+                yield "Method name"
+                yield "</th><th>"
+                yield "Description"
+                yield "</th></tr>\n"
+
+                for method in function_members:
+                    yield "<tr>\n"
+                    yield "<th style=\"width:" + str(PythonDocs.method_column_width)+"%\">\n"
+                    yield method[0] + "\n</th>\n<td>\n"
+                    yield PythonDocs.generate_python_docstrings(method[1])
+                    yield "</td>\n</tr>\n"
+
+                yield "</table><br />\n"
+
             for cls in class_members:
                 for thing in PythonDocs.generate_class_python_docs(cls):
                     yield thing
