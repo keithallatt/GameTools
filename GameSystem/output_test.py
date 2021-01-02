@@ -6,6 +6,14 @@ from PIL import Image, ImageDraw, ImageFont
 import numpy as np
 from threading import Thread
 import os
+import time
+
+"""
+If not running in Pycharm: (curses library)
+ - Click 'Run' menu
+ - Click 'Edit Configurations...'
+ - Check 'Emulate terminal in output console'
+"""
 
 
 def ascii_art(text: str, font: str = "Arial.ttf", font_size: int = 15, x_margin: int = 0,
@@ -78,14 +86,6 @@ def ascii_art(text: str, font: str = "Arial.ttf", font_size: int = 15, x_margin:
     return string
 
 
-"""
-If not running in Pycharm:
- - Click 'Run' menu
- - Click 'Edit Configurations...'
- - Check 'Emulate terminal in output console'
-"""
-
-
 def start_game_sys(game_queue: list):
     """ Start the game system with the given list. """
     GameSysIO.game_queue = game_queue
@@ -104,6 +104,7 @@ class GameSysIO:
         curses.curs_set(0)
         self.exception = None
         self.exit_code = None
+        self.triggers = []
 
     game_queue = []
 
@@ -127,11 +128,54 @@ class GameSysIO:
             state. """
         self.console.clear()
         self.draw_init()
+        self.console.addstr(0, 0, "Loading... ")
         self.console.refresh()
 
-        with keyboard.Listener(on_press=self.on_press, on_release=self.on_release,
+        with keyboard.Listener(on_press=self.on_press,
+                               on_release=self.on_release,
                                suppress=True) as listener:
+            time.sleep(0.1)
+            self.console.clear()
+            self.draw_init()
+            self.console.refresh()
+
             listener.join()
+
+    def check_triggers(self):
+        """ Check all triggers, if any triggers give true, then add the new game system. """
+        for trigger_obj in self.triggers:
+            trigger, other, transient, append = trigger_obj
+            try:
+                if trigger(self):
+                    if append:
+                        if type(other) == list:
+                            GameSysIO.game_queue += other[::]
+                        else:
+                            GameSysIO.game_queue.append(other)
+                    else:
+                        if type(other) == list:
+                            GameSysIO.game_queue = other[::]
+                        else:
+                            GameSysIO.game_queue = [other]
+
+                    if transient:
+                        GameSysIO.game_queue.append(self)
+
+                    self.exit_code = 0
+                    self.console.clear()
+                    curses.endwin()
+                    return False
+            except AttributeError:
+                # attribute error occurs if lambda is not the trigger for the
+                # right type of game system.
+                pass
+        else:
+            return True
+
+    def link(self, other, trigger, transient=False, append=False):
+        """ When the trigger is set, change to other, transient being if self is set as a
+            return point """
+        self.triggers.append((trigger, other, transient, append))
 
     @staticmethod
     def game_timer():
@@ -143,7 +187,8 @@ class GameSysIO:
                 next_sys = GameSysIO.game_queue.pop(0)
                 if type(next_sys) == tuple:
                     next_sys, args = next_sys
-                    next_sys(*args)
+                    next_game_sys = next_sys(*args)
+                    next_game_sys.restart()
                 else:
                     next_sys.restart()
             else:
@@ -168,11 +213,8 @@ class TitleSysIO(GameSysIO):
 
         self.board = str(self.art).split("\n")
 
-        self.draw_init()
-
-        with keyboard.Listener(on_press=self.on_press, on_release=self.on_release,
-                               suppress=True) as listener:
-            listener.join()
+        self.chosen = False
+        self.chosen_option = None
 
     def draw_init(self):
         """ Draw the menu with the default option selected """
@@ -210,27 +252,12 @@ class TitleSysIO(GameSysIO):
 
     def on_release(self, key: keyboard.Key):
         """ Check what option the user choose. """
+        self.chosen = False
+        self.chosen_option = None
         if key == keyboard.Key.enter:
-            if self.option_choices[self.option_choice] == "Quit":
-                # Stop listener
-                GameSysIO.game_queue = []
-                self.exit_code = 0
-                self.console.clear()
-                curses.endwin()
-                return False
-            if self.option_choices[self.option_choice] == "Start":
-                # Stop listener
-                GameSysIO.game_queue.append((MapIO, (BlankSystem(10, 10, 'WALKABLE'), 1, 1)))
-                self.exit_code = 0
-                self.console.clear()
-                curses.endwin()
-                return False
-            if self.option_choices[self.option_choice] == "Continue":
-                # Stop listener
-                self.exit_code = 0
-                self.console.clear()
-                curses.endwin()
-                return False
+            self.chosen = True
+            self.chosen_option = self.option_choices[self.option_choice]
+        return self.check_triggers()
 
 
 class MapIO(GameSysIO):
@@ -249,15 +276,9 @@ class MapIO(GameSysIO):
         self.x_loc = x_loc
         self.y_loc = y_loc
 
+        self.pause = False
+
         self.char = "P1"
-
-        self.draw_init()
-
-        self.console.refresh()
-
-        with keyboard.Listener(on_press=self.on_press, on_release=self.on_release,
-                               suppress=True) as listener:
-            listener.join()
 
     def draw_init(self):
         """ Draw the map and initial location of the user """
@@ -274,6 +295,12 @@ class MapIO(GameSysIO):
     def on_press(self, key: keyboard.Key):
         """ Check to see if the user is moving (arrow keys) """
         try:
+            self.pause = False
+            # if key == keyboard.Key.esc: ## Lags a lot
+            if key == keyboard.KeyCode.from_char('p'):
+                self.pause = True
+                return
+
             new_x, new_y = self.x_loc, self.y_loc
 
             self.console.addstr(self.y_loc, self.x_loc * 2,
@@ -308,7 +335,6 @@ class MapIO(GameSysIO):
 
             self.console.addstr(self.y_loc, self.x_loc * 2, self.char)
             self.console.refresh()
-
         except _curses.error:
             self.console.clear()
             curses.endwin()
@@ -317,18 +343,20 @@ class MapIO(GameSysIO):
 
     def on_release(self, key: keyboard.Key):
         """ Check to see if the user is pausing. """
-        if key == keyboard.Key.esc:
-            GameSysIO.game_queue.append((TitleSysIO, ("Pause", ["Continue", "Quit"])))
-            GameSysIO.game_queue.append(self)
-            self.exit_code = 0
-            self.console.clear()
-            curses.endwin()
-            return False
+        return self.check_triggers()
 
 
 if __name__ == "__main__":
-    # TODO: - make each kind of system, like MapSysIO, Title, Combat, Conversation, ...
-    #  that uses each kind of object. Each object should be able to link in a 1-way or
-    #  reversible way, like either transports to a new location (1-way) or links to a
-    #  pause menu or conversation (reversible).
-    start_game_sys([(TitleSysIO, ("Game",))])
+    main_title = TitleSysIO(title="Game", option_choices=["Start", "Quit"])
+    pause_title = TitleSysIO(title="Pause", option_choices=["Continue", "Quit"])
+    map_sys = MapIO(BlankSystem(10, 10, "WALKABLE"), 1, 1)
+
+    main_title.link([], lambda x: x.chosen and x.chosen_option == "Quit")
+    main_title.link([map_sys], lambda x: x.chosen and x.chosen_option == "Start")
+
+    pause_title.link([], lambda x: x.chosen and x.chosen_option == "Quit")
+    pause_title.link([map_sys], lambda x: x.chosen and x.chosen_option == "Continue")
+
+    map_sys.link([pause_title], lambda x: x.pause, transient=True)
+
+    start_game_sys([main_title])
