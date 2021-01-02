@@ -1,22 +1,4 @@
-from random import randrange, shuffle
-import sys
-
-
-class RecursionLimit:
-    """ Set the recursion limit higher if need be.
-        If set too high, errors at the C level could occur """
-    def __init__(self, limit):
-        """ set limit and remember old limit (typically 1000) """
-        self.limit = limit
-        self.old_limit = sys.getrecursionlimit()
-
-    def __enter__(self):
-        """ Set limit to new value """
-        sys.setrecursionlimit(self.limit)
-
-    def __exit__(self, _type, value, tb):
-        """ Set limit to what it was prior to entering as context """
-        sys.setrecursionlimit(self.old_limit)
+from random import shuffle
 
 
 class MapException(Exception):
@@ -72,55 +54,69 @@ class MazeSystem(Map):
             of rows and columns of the actual maze, since the map requires tiles
             to provide the walkable area. """
         super().__init__(width * 2 + 1, height * 2 + 1, *args)
-        limit = 1000
-        max_limit = 10000
-        while limit < max_limit:
-            try:
-                self.map = self._gen_maze(limit)
-                break
-            except RecursionError:
-                limit += 100
-        else:
-            raise MapException("Failed Initialization", msg="Hit Upper Recursion Limit of 10000.")
 
-    def _gen_maze(self, rl=1000):
-        """ Generate maze with a recursion limit rl """
+        self.map = self._gen_maze()
+
+    def _gen_maze(self):
         w, h = self.width // 2, self.height // 2
 
-        vis = [[0] * w + [1] for _ in range(h)] + [[1] * (w + 1)]
-        ver = [
-                  ["10"] * w +
-                  ["1"] for _ in range(h)] + [[]]
-        hor = [
-            ["11"] * w +
-            ["1"] for _ in range(h + 1)]
+        visited = [[False for _ in range(h)] for __ in range(w)]
+        cells = [(col, row) for col in range(h) for row in range(w)]
 
-        def walk(x, y):
-            vis[y][x] = 1
+        # push -> stack.append
+        # pop ->  stack.pop
+        stack = []
 
-            d = [(x - 1, y), (x, y + 1), (x + 1, y), (x, y - 1)]
-            shuffle(d)
-            for (xx, yy) in d:
-                if vis[yy][xx]:
-                    continue
-                if xx == x:
-                    hor[max(y, yy)][x] = "10"
-                if yy == y:
-                    ver[y][max(x, xx)] = "00"
-                walk(xx, yy)
+        # start with (0,0)
 
-        with RecursionLimit(rl):
-            walk(randrange(w), randrange(h))
+        first_cell = cells.pop(0)
 
-        s = ""
-        for (a, b) in zip(hor, ver):
-            s += ''.join(a + ['\n'] + b + ['\n'])
+        visited[first_cell[0]][first_cell[1]] = True
 
-        s = s.strip()
+        stack.append(first_cell)
+
+        map_cells = [[1 if col % 2 == 0 or row % 2 == 0 else 0
+                      for col in range(self.height)] for row in range(self.width)]
+
+        def cell_to_map(x, y):
+            return 2 * x + 1, 2 * y + 1
+
+        def average_2_tuple(x1, y1, x2, y2):
+            return (x1 + x2) // 2, (y1 + y2) // 2
+
+        def north(x, y):
+            return (x - 1, y) if x > 0 else None
+
+        def east(x, y):
+            return (x, y + 1) if y < h - 1 else None
+
+        def south(x, y):
+            return (x + 1, y) if x < w - 1 else None
+
+        def west(x, y):
+            return (x, y - 1) if y > 0 else None
+
+        while len(stack) > 0:
+            current_cell = stack.pop()
+
+            neighbours = [north(*current_cell), east(*current_cell),
+                          south(*current_cell), west(*current_cell)]
+
+            neighbours = [n for n in neighbours if n is not None]
+            neighbours = [n for n in neighbours if not visited[n[0]][n[1]]]
+
+            if len(neighbours) > 0:
+                stack.append(current_cell)
+                shuffle(neighbours)
+                next_cell = neighbours[0]
+                map_wall = average_2_tuple(*cell_to_map(*current_cell), *cell_to_map(*next_cell))
+                map_cells[map_wall[0]][map_wall[1]] = 0
+                visited[next_cell[0]][next_cell[1]] = True
+                stack.append(next_cell)
 
         return [
-            [["WALKABLE", "WALL"][int(x)]
-             for x in line] for line in s.split("\n")
+            [["WALKABLE", "WALL"][x]
+             for x in line] for line in map_cells
         ]
 
 
@@ -161,20 +157,6 @@ class BlankSystem(Map):
 
 
 if __name__ == "__main__":
-    blank_map = BlankSystem(10, 10, "WALKABLE")
+    maze = MazeSystem(100, 10)
 
-    blank_map.draw_rect_to_map("WALL", 0, 0, 10, 10)
-    blank_map.draw_to_map("WALKABLE", 9, 2)
-    blank_map.draw_to_map("WALKABLE", 9, 3)
-
-    blank_map.draw_rect_to_map("WALL", 0, 0, 6, 6)
-    blank_map.draw_to_map("WALKABLE", 3, 5)
-
-    blank_map.draw_to_map("BOX", 1, 2)
-    blank_map.draw_to_map("BOX", 1, 1)
-    blank_map.draw_to_map("BOX", 2, 2)
-    blank_map.draw_to_map("BOX", 2, 4)
-    blank_map.draw_to_map("BOX", 3, 1)
-    blank_map.draw_to_map("BOX", 4, 1)
-
-    print(blank_map)
+    print(maze)
