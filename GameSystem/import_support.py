@@ -44,11 +44,12 @@ class ImportSupport:
     def _install_all_packages(modules_to_try):
         """ Attempt to install all packages. In the case of failure, end the program. """
         successful = True
+        print("Importing modules:")
         for module in modules_to_try:
             try:
                 # if you can import the module, it is installed.
                 __import__(module)
-                print("Module imported", module)
+                print(" >> "+module)
             except ImportError as e:
                 # if it isn't installed, ask to install it.
                 print("Failed to import", module, "\nAttempting to install.")
@@ -59,11 +60,11 @@ class ImportSupport:
                 else:
                     successful = False
         if successful:
-            print("All modules are installed.")
+            print("\nAll {0} modules are installed.".format(len(modules_to_try)))
         else:
             # if any modules are not installed and the user declines to install them
             # then the program won't run.
-            print("Missing modules not installed.")
+            print("\nMissing modules not installed.")
             exit(1)
 
     @staticmethod

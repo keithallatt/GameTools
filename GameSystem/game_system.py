@@ -1,3 +1,4 @@
+from __future__ import annotations
 import _curses
 import curses
 from MapSystem.map import Map, BlankSystem
@@ -7,6 +8,7 @@ import numpy as np
 from threading import Thread
 import os
 import time
+from typing import Callable, Union, List, Tuple
 
 """
 If not running in Pycharm: (curses library)
@@ -20,6 +22,7 @@ def ascii_art(text: str, font: str = "Arial.ttf", font_size: int = 15, x_margin:
               y_margin: int = 0, shadow_char: str = u'\u2591', fill_char: str = u'\u2588',
               double_width: bool = False, trim: bool = False, shadow: bool = False,
               full_shadow: bool = False):
+    """ Draw Ascii Art of text of a particular font and font size. """
     if full_shadow:
         shadow = True
 
@@ -94,6 +97,86 @@ def start_game_sys(game_queue: list):
     game_thread.start()
 
 
+class GameSysTrigger:
+    """ Game system trigger object, used for classifying different triggers. """
+    def __init__(self, target, trigger: Callable):
+        """ Create a generic trigger with a target and trigger. """
+        self.target = target
+        self.trigger = trigger
+
+    def handle(self, game_sys: GameSysIO):
+        """ Handle the trigger, including checking to see if the trigger callable
+            returns a true value. """
+        pass
+
+
+class GameSysChangeTrigger(GameSysTrigger):
+    """ Trigger for changing game systems, such as from title screen to main game, or
+        to and from a pause menu. """
+    def __init__(self, target: Union[List[GameSysIO], GameSysIO],
+                 trigger: Callable, transient: bool = False, append: bool = False):
+        """ Create a game system change trigger. """
+        super().__init__(target, trigger)
+        self.transient = transient
+        self.append = append
+
+    def handle(self, game_sys: GameSysIO):
+        """ Handle the trigger and change the system if need be. """
+        try:
+            trigger_value = self.trigger(game_sys)
+            if trigger_value and type(trigger_value) == bool:
+                if self.append:
+                    if type(self.target) == list:
+                        GameSysIO.game_queue += self.target[::]
+                    else:
+                        GameSysIO.game_queue.append(self.target)
+                else:
+                    if type(self.target) == list:
+                        GameSysIO.game_queue = self.target[::]
+                    else:
+                        GameSysIO.game_queue = [self.target]
+
+                if self.transient:
+                    GameSysIO.game_queue.append(game_sys)
+
+                game_sys.exit_code = 0
+                game_sys.console.clear()
+                curses.endwin()
+                return False
+        except AttributeError:
+            # attribute error occurs if lambda is not the trigger for the
+            # right type of game system.
+            pass
+
+
+class MapSysRelocationTrigger(GameSysTrigger):
+    """ Trigger for changing locations within the same map. """
+    def __init__(self, map_obj: MapIO, trip_location: Tuple[int, int],
+                 destination: Tuple[int, int]):
+        """ Create a relocation trigger """
+        def trigger(map_object):
+            return (map_object.x_loc, map_object.y_loc) == trip_location
+
+        super().__init__(map_obj, trigger)
+
+        self.destination = destination
+
+    def handle(self, game_sys: GameSysIO):
+        """ Handle the trigger and relocate the player. """
+        try:
+            trigger_value = self.trigger(game_sys)
+            if trigger_value and type(trigger_value) == bool:
+                self.target.x_loc, self.target.y_loc = self.destination
+                # redraw character.
+                game_sys.console.clear()
+                game_sys.draw_init()
+                game_sys.console.refresh()
+        except AttributeError:
+            # attribute error occurs if lambda is not the trigger for the
+            # right type of game system.
+            pass
+
+
 class GameSysIO:
     """ General IO for game system. """
     def __init__(self):
@@ -144,38 +227,17 @@ class GameSysIO:
     def check_triggers(self):
         """ Check all triggers, if any triggers give true, then add the new game system. """
         for trigger_obj in self.triggers:
-            trigger, other, transient, append = trigger_obj
-            try:
-                if trigger(self):
-                    if append:
-                        if type(other) == list:
-                            GameSysIO.game_queue += other[::]
-                        else:
-                            GameSysIO.game_queue.append(other)
-                    else:
-                        if type(other) == list:
-                            GameSysIO.game_queue = other[::]
-                        else:
-                            GameSysIO.game_queue = [other]
-
-                    if transient:
-                        GameSysIO.game_queue.append(self)
-
-                    self.exit_code = 0
-                    self.console.clear()
-                    curses.endwin()
+            return_value = trigger_obj.handle(self)
+            if return_value is not None:
+                if not return_value:
+                    # return value is exactly False.
                     return False
-            except AttributeError:
-                # attribute error occurs if lambda is not the trigger for the
-                # right type of game system.
-                pass
-        else:
-            return True
 
-    def link(self, other, trigger, transient=False, append=False):
+    def link_sys_change(self, target: Union[List[GameSysIO], GameSysIO], trigger: Callable,
+                        transient: bool = False, append: bool = False):
         """ When the trigger is set, change to other, transient being if self is set as a
             return point """
-        self.triggers.append((trigger, other, transient, append))
+        self.triggers.append(GameSysChangeTrigger(target, trigger, transient, append))
 
     @staticmethod
     def game_timer():
@@ -198,11 +260,12 @@ class GameSysIO:
 class TitleSysIO(GameSysIO):
     """ Initialize a title screen IO system. Displays ascii art of the
         game title or particular menu. """
-    def __init__(self, title: str, option_choices: list[str] = None, option_choice: int = 0):
+    def __init__(self, title: str, option_choices: list[str] = None, option_choice: int = 0,
+                 font_size: int = 15):
         """ Create a title screen or menu. """
         super().__init__()
 
-        self.art = ascii_art(title, shadow=True)
+        self.art = ascii_art(title, shadow=True, font_size=font_size)
 
         self.option_choices = [
             "Start", "Quit"
@@ -345,18 +408,25 @@ class MapIO(GameSysIO):
         """ Check to see if the user is pausing. """
         return self.check_triggers()
 
+    def link_relocation(self, trip_location: Tuple[int, int], destination: Tuple[int, int]):
+        self.triggers.append(MapSysRelocationTrigger(self, trip_location, destination))
+
 
 if __name__ == "__main__":
     main_title = TitleSysIO(title="Game", option_choices=["Start", "Quit"])
-    pause_title = TitleSysIO(title="Pause", option_choices=["Continue", "Quit"])
+    pause_title = TitleSysIO(title="Pause", option_choices=["Continue", "Return to menu"],
+                             font_size=12)
     map_sys = MapIO(BlankSystem(10, 10, "WALKABLE"), 1, 1)
 
-    main_title.link([], lambda x: x.chosen and x.chosen_option == "Quit")
-    main_title.link([map_sys], lambda x: x.chosen and x.chosen_option == "Start")
+    main_title.link_sys_change([], lambda x: x.chosen and x.chosen_option == "Quit")
+    main_title.link_sys_change([map_sys], lambda x: x.chosen and x.chosen_option == "Start")
 
-    pause_title.link([], lambda x: x.chosen and x.chosen_option == "Quit")
-    pause_title.link([map_sys], lambda x: x.chosen and x.chosen_option == "Continue")
+    pause_title.link_sys_change([main_title],
+                                lambda x: x.chosen and x.chosen_option == "Return to menu")
+    pause_title.link_sys_change([map_sys], lambda x: x.chosen and x.chosen_option == "Continue")
 
-    map_sys.link([pause_title], lambda x: x.pause, transient=True)
+    map_sys.link_sys_change([pause_title], lambda x: x.pause, transient=True)
+
+    map_sys.link_relocation((0, 0), (5, 5))
 
     start_game_sys([main_title])
