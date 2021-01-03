@@ -20,7 +20,7 @@ class CurrencyException(Exception):
 
 
 class PriceRegistry:
-    """ Represents a unified list for any shopkeeper npc to use to buy items from the player """
+    """ Represents a unified list for any shopkeeper npc to use to buy items from the player. """
     def __init__(self, registry: dict[str, int] = None,
                  read_file: Union[TextIOWrapper, Union[IO, IO[bytes]]] = None,
                  read_file_path: str = None):  # file path to open itself
@@ -52,15 +52,15 @@ class PriceRegistry:
                 read_file.close()
 
     def __str__(self):
-        """ Represent the registry as a list of items and prices """
+        """ Represent the registry as a list of items and prices. """
         return "\n".join([k + " -> " + str(v) for k, v in self.registry.items()])
 
     def add_to_registry(self, item_name: str, item_price: int):
-        """ Add a new entry to the registry """
+        """ Add a new entry to the registry. """
         self.registry.update({item_name: item_price})
 
     def save_to_file(self, read_file_path: str = None):
-        """ Save the registry to file """
+        """ Save the registry to file. """
         if read_file_path is not None:
             self.read_file_path = read_file_path
         if self.read_file_path is None:
@@ -70,7 +70,7 @@ class PriceRegistry:
             file.close()
 
     def read_from_registry(self, item_name: str):
-        """ Retrieve the entry from the registry """
+        """ Retrieve the entry from the registry. """
         return self.registry.get(item_name, None)
 
 
@@ -141,7 +141,7 @@ class Wallet:
 
     def unstack(self, wallet=None):
         """ Return the amount this wallet is worth in it's lowest valued denomination.
-            Inverse of auto_stack method."""
+            Inverse of auto_stack method. """
         if wallet is None:
             wallet = self.wallet
         lowest_denomination = self.curr_sys.denominations[-1]
@@ -154,35 +154,35 @@ class Wallet:
         return amount
 
     def __add__(self, other: Wallet):
-        """ Returns self + other in terms of currency amounts """
+        """ Returns self + other in terms of currency amounts. """
         return Wallet(curr_sys=self.curr_sys, amount=(self.unstack() + other.unstack()))
 
     def __sub__(self, other: Wallet):
-        """ Returns self - other in terms of currency amounts """
+        """ Returns self - other in terms of currency amounts. """
         return Wallet(curr_sys=self.curr_sys, amount=(self.unstack() - other.unstack()))
 
     def __gt__(self, other):
-        """ Returns self > other in terms of currency amounts """
+        """ Returns self > other in terms of currency amounts. """
         return self.unstack().__gt__(other.unstack())
 
     def __lt__(self, other):
-        """ Returns self < other in terms of currency amounts """
+        """ Returns self < other in terms of currency amounts. """
         return self.unstack().__lt__(other.unstack())
 
     def __ge__(self, other):
-        """ Returns self >= other in terms of currency amounts """
+        """ Returns self >= other in terms of currency amounts. """
         return self.unstack().__ge__(other.unstack())
 
     def __le__(self, other):
-        """ Returns self <= other in terms of currency amounts """
+        """ Returns self <= other in terms of currency amounts. """
         return self.unstack().__le__(other.unstack())
 
     def __eq__(self, other):
-        """ Returns self == other in terms of currency amounts """
+        """ Returns self == other in terms of currency amounts. """
         return self.unstack().__eq__(other.unstack())
 
     def __ne__(self, other):
-        """ Returns self != other in terms of currency amounts """
+        """ Returns self != other in terms of currency amounts. """
         return self.unstack().__ne__(other.unstack())
 
 
@@ -194,9 +194,8 @@ class CurrencySystem:
         For all denominations other than the highest valued denomination (first entry),
         the value associated with that key is the amount of that denomination that is
         equivalent in worth the next most valued denomination.
-        I.e. 1 * key(denomination[i])
-             is equivalent to
-             value(denomination[i+1]) * key(denomination[i+1])
+        I.e. 1 * key(denomination[i]) is equivalent to
+             value(denomination[i+1]) * key(denomination[i+1]).
         """
         if relative_denominations is None:
             self.denominations = ["Gold"]

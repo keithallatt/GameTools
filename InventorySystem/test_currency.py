@@ -12,7 +12,7 @@ from InventorySystem.currency import PriceRegistry, Wallet, CurrencySystem, Curr
 class CurrencyTest(TestCase):
     def test_price_registry(self):
         """ Test the price registry to see if reading from a properly formatted JSON file
-            is read correctly by the price registry."""
+            is read correctly by the price registry. """
         letters = string.ascii_lowercase
         num_words = 200
         word_len = 15
@@ -48,7 +48,7 @@ class CurrencyTest(TestCase):
                             item, item_dict[item], pr.read_from_registry(item)))
 
     def test_wallet(self):
-        """ Test general wallet functionality """
+        """ Test general wallet functionality. """
         # test wallet addition
         for init_q in range(100):
             for add_q in range(100):
@@ -60,7 +60,7 @@ class CurrencyTest(TestCase):
                 self.assertEqual(wallet_init.unstack(), init_q + add_q)
 
     def test_currency_exception(self):
-        """ Test if certain operations raise exceptions as they should """
+        """ Test if certain operations raise exceptions as they should. """
         for init_q in range(100):
             with self.assertRaises(CurrencyException) as context:
                 wallet_init = Wallet(amount=init_q)
@@ -83,7 +83,7 @@ class CurrencyTest(TestCase):
                             context.exception.msg)
 
     def test_currency_system(self):
-        """ Create and test currency system functions """
+        """ Create and test currency system functions. """
         for _ in range(100):
             num_denominations = np.random.randint(2, 10)
             denominations = [chr(ord('A')+i) + str(i+1) for i in range(num_denominations)]

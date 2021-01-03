@@ -15,6 +15,15 @@ class PythonDocs:
     def generate_python_docstrings(thing):
         """ Get docstrings from object but return an empty string if no docstrings exist. """
         if thing.__doc__ is not None:
+            # rudimentary grammar check
+            if thing.__doc__.strip() != "":
+                if not thing.__doc__.strip().endswith(".") :
+                    print("No '.' ending:", thing)
+                if not thing.__doc__.strip()[0] == thing.__doc__.strip()[0].upper():
+                    print("No capitalization:", thing)
+            else:
+                print("Missing docstring:", thing)
+
             return thing.__doc__
         else:
             return ""

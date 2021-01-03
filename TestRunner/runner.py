@@ -15,7 +15,7 @@ length_of_dash = 84
 
 def add_module_path(working_dir, sd):
     """ Provided sd is a folder within the working directory, and that folder is
-        a Python3+ module, format the filename of the __init__.py file """
+        a Python3+ module, format the filename of the __init__.py file. """
     return working_dir + sd + os.sep + "__init__.py"
 
 
@@ -23,7 +23,7 @@ def remove_comments_and_docstrings(source_code):
     """ Modified slightly from:
     <a href="
     https://stackoverflow.com/questions/1769332/script-to-remove-python-comments-docstrings
-    ">Here</a>
+    ">Here</a>.
     """
     io_obj = StringIO(source_code)
     out = ""
@@ -61,7 +61,7 @@ def count_lines(start, lines=0, source_loc=0, files=0,
     """ Modified slightly from:
     <a href="
     https://stackoverflow.com/questions/38543709/count-lines-of-code-in-directory-using-python
-    ">Here</a>
+    ">Here</a>.
     """
 
     if start.endswith("__pycache__"):
@@ -171,7 +171,7 @@ def statistics(source: str, condensed: bool = False):
 
 
 def run_all_tests(source: str):
-    """ Run all unit tests as found  """
+    """ Run all unit tests as found.  """
     # working dir needs to be **/GameTools/
     working_dir = source
     if working_dir[-1] != os.sep:

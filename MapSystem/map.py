@@ -2,9 +2,9 @@ from random import shuffle
 
 
 class MapException(Exception):
-    """ General Map exception for narrower exception handing cases """
+    """ General Map exception for narrower exception handing cases. """
     def __init__(self, map_obj, msg=None):
-        """ General Map exception for narrower exception handing cases """
+        """ General Map exception for narrower exception handing cases. """
         if msg is None:
             # Set some default useful error message
             msg = "An error occurred with Map:"
@@ -14,7 +14,7 @@ class MapException(Exception):
 
 
 class Map:
-    """ General Map type object """
+    """ General Map type object. Contains default cell type if not specified. """
     def __init__(self, width, height, *args):
         """ Generate a generic map of particular width and height. """
         self.width = width
@@ -36,8 +36,16 @@ class Map:
             "WALL": False
         }
 
+    def __str__(self):
+        """ Draw the map. """
+        return "\n".join(
+            ["".join(
+                [self.MAP_CHARS[x] for x in line]
+            ) for line in self.map]
+        )
+
     def declare_map_char_block(self, block: str, character: str, walkable: bool = False):
-        """ Declare a new entry of MAP_CHARS """
+        """ Declare a new entry of the map character dictionary. """
         if block in self.MAP_CHARS.keys():
             raise MapException(None, msg="Re-declaring existing map character key")
 
@@ -45,22 +53,14 @@ class Map:
         self.WALKABLE[block] = walkable
 
     def set_map_char_block(self, block: str = "", character: str = "#"):
-        """ Set entry of MAP_CHARS """
+        """ Set entry of the map character dictionary. """
         if block not in self.MAP_CHARS.keys():
             raise MapException(None, msg="Character key non-existent")
 
         self.MAP_CHARS[block] = character
 
-    def __str__(self):
-        """ Draw the map """
-        return "\n".join(
-            ["".join(
-                [self.MAP_CHARS[x] for x in line]
-            ) for line in self.map]
-        )
-
     def draw_rect_to_map(self, character, x_location, y_location, w, h):
-        """ draw a rectangle to the map, using a specific character """
+        """ Draw a rectangle to the map, using a specific character. """
         # TODO: make fill rect method
         for i in range(x_location, x_location + w):
             self.draw_to_map(character, i, y_location)
@@ -69,8 +69,15 @@ class Map:
             self.draw_to_map(character, x_location, i)
             self.draw_to_map(character, x_location + w - 1, i)
 
+    def fill_rect_to_map(self, character, x_location, y_location, w, h):
+        """ Fill a rectangle to the map, using a specific character. """
+        # TODO: make fill rect method
+        for i in range(x_location, x_location + w):
+            for j in range(y_location, y_location + h):
+                self.draw_to_map(character, i, j)
+
     def draw_to_map(self, character_key, x_location, y_location):
-        """ draw a cell to the map, using a specific character """
+        """ Draw a cell to the map, using a specific character. """
         if list(self.MAP_CHARS.keys()).index(character_key) != -1:
             # character is in the MAP_CHARS area
             # map_obj -> Map
@@ -79,7 +86,7 @@ class Map:
             self.map[y_location][x_location] = character_key
 
     def draw_sub_map(self, sub_map, x_location, y_location):
-        """ draw a portion or all of a sub-map to the map """
+        """ Draw a portion or all of a sub-map to the map. """
         for row in range(len(sub_map.map)):
             for col in range(len(sub_map.map[row])):
                 try:
@@ -89,11 +96,12 @@ class Map:
                     pass
 
     def is_walkable(self, block):
+        """ Return if the map deems a particular block type to be walkable. """
         return self.WALKABLE.get(block, False)
 
 
 class MazeSystem(Map):
-    """ A Maze map of size width by height in terms of cells (not tiles) """
+    """ A Maze map of size width by height in terms of cells (not tiles). """
     def __init__(self, width, height, *args):
         """ Generate a map of a maze with a particular width and height in terms
             of rows and columns of the actual maze, since the map requires tiles
@@ -103,6 +111,7 @@ class MazeSystem(Map):
         self.map = self._gen_maze()
 
     def _gen_maze(self):
+        """ Generate maze using an iterative stack based approach. """
         w, h = self.width // 2, self.height // 2
 
         visited = [[False for _ in range(h)] for __ in range(w)]
@@ -163,7 +172,3 @@ class MazeSystem(Map):
             [["WALKABLE", "WALL"][x]
              for x in line] for line in map_cells
         ]
-
-
-if __name__ == "__main__":
-    pass

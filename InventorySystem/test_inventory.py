@@ -5,7 +5,7 @@ from InventorySystem.inventory import Item, InventorySystem, InventoryException,
 
 
 class InventoryTest(TestCase):
-    """ InventorySystem module test cases """
+    """ InventorySystem module test cases. """
     def test_item(self):
         """ Test item integer multiplications and item item additions. """
         # test a range of multiplications of items
@@ -30,7 +30,7 @@ class InventoryTest(TestCase):
                 self.assertEqual(foo1.quantity, init_q + add_q)
 
     def test_inventory_exception(self):
-        """ Test whether or not exceptions are raised by illegal operations """
+        """ Test whether or not exceptions are raised by illegal operations. """
         inv = InventorySystem(stack_limit=3,
                               max_slots=3,
                               item_filter=ItemFilter.FILTER_ACCEPT_ALL)
@@ -51,7 +51,7 @@ class InventoryTest(TestCase):
                         context.exception.msg)
 
     def test_inventory_system(self):
-        """ Test inventory system for its ability to add multiple items to itself """
+        """ Test inventory system for its ability to add multiple items to itself. """
         # test adding different items, making sure all are added
         for foo_q in range(50):
             for bar_q in range(50):

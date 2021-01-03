@@ -152,11 +152,10 @@ class GameTrigger:
     class MapSysRelocationTrigger(_GameSysTrigger):
         """ Trigger for changing locations within the same map. """
         def __init__(self, map_obj: MapIO, trip_location: Tuple[int, int],
-                     destination: Tuple[int, int], bidirectional: bool = False):
-            """ Create a relocation trigger """
+                     destination: Tuple[int, int]):
+            """ Create a relocation trigger. """
             def trigger(map_object):
-                return (map_object.x_loc, map_object.y_loc) == trip_location or \
-                    ((map_object.x_loc, map_object.y_loc) == destination and bidirectional)
+                return (map_object.x_loc, map_object.y_loc) == trip_location
 
             super().__init__(map_obj, trigger)
 
@@ -168,15 +167,14 @@ class GameTrigger:
             try:
                 trigger_value = self.trigger(game_sys)
                 if trigger_value and type(trigger_value) == bool:
-                    if (self.target.x_loc, self.target.y_loc) == self.destination:
-                        self.target.x_loc, self.target.y_loc = self.trip_location
-                    else:
-                        self.target.x_loc, self.target.y_loc = self.destination
+                    self.target.x_loc, self.target.y_loc = self.destination
 
                     # redraw character.
                     game_sys.console.clear()
                     game_sys.draw_init()
                     game_sys.console.refresh()
+
+                    return True
             except AttributeError:
                 # attribute error occurs if lambda is not the trigger for the
                 # right type of game system.
@@ -198,11 +196,11 @@ class GameSysIO:
     game_queue = []
 
     def on_press(self, key: keyboard.Key):
-        """ On a key press, how to handle the rising edge (press) """
+        """ On a key press, how to handle the rising edge (press). """
         pass
 
     def on_release(self, key: keyboard.Key):
-        """ On a key press, how to handle the falling edge (release) """
+        """ On a key press, how to handle the falling edge (release). """
         pass
 
     def draw_init(self):
@@ -238,11 +236,12 @@ class GameSysIO:
                 if not return_value:
                     # return value is exactly False.
                     return False
+                return True
 
     def link_sys_change(self, target: Union[List[GameSysIO], GameSysIO], trigger: Callable,
                         transient: bool = False, append: bool = False):
         """ When the trigger is set, change to other, transient being if self is set as a
-            return point """
+            return point. """
         self.triggers.append(GameTrigger.GameSysChangeTrigger(target, trigger, transient, append))
 
     @staticmethod
@@ -286,7 +285,7 @@ class TitleSysIO(GameSysIO):
         self.chosen_option = None
 
     def draw_init(self):
-        """ Draw the menu with the default option selected """
+        """ Draw the menu with the default option selected. """
         self.console.clear()
 
         for i in range(len(self.board)):
@@ -299,7 +298,7 @@ class TitleSysIO(GameSysIO):
         self.console.refresh()
 
     def on_press(self, key: keyboard.Key):
-        """ Check if the user is choosing a new option (up / down arrow keys) """
+        """ Check if the user is choosing a new option (up / down arrow keys). """
         try:
             self.console.addstr(len(self.board)+2+self.option_choice, 1, " ")
 
@@ -335,7 +334,7 @@ class MapIO(GameSysIO):
     """ Create the IO system for a general map. This will be used for general walking around. """
     def __init__(self, main_map: Map, x_loc: int, y_loc: int):
         """ Generate a walkable area map for the user to walk around.
-            Default location is provided """
+            Default location is provided by the x_loc and y_loc variables. """
         super().__init__()
 
         self.main_map = main_map
@@ -353,7 +352,7 @@ class MapIO(GameSysIO):
         self.char = "P1"
 
     def draw_init(self):
-        """ Draw the map and initial location of the user """
+        """ Draw the map and current location of the player. """
         self.console.clear()
 
         board = str(self.main_map).split("\n")
@@ -365,16 +364,17 @@ class MapIO(GameSysIO):
         self.console.refresh()
 
     def on_press(self, key: keyboard.Key):
-        """ Check to see if the user is moving (arrow keys), or pausing ('p') """
+        """ Check to see if the user is moving (arrow keys), or pausing ('p'). """
         try:
+            # Pausing check
             self.pause = False
             # if key == keyboard.Key.esc: ## Lags a lot
             if key == keyboard.KeyCode.from_char('p'):
                 self.pause = True
                 return self.check_triggers()
 
+            # Moving check
             new_x, new_y = self.x_loc, self.y_loc
-
             self.console.addstr(self.y_loc, self.x_loc * 2,
                                 self.main_map.MAP_CHARS[self.main_map.map[new_y][new_x]])
 
@@ -413,19 +413,24 @@ class MapIO(GameSysIO):
             self.exit_code = 1
             return False
 
-    def link_relocation(self, trip_location: Tuple[int, int], destination: Tuple[int, int],
-                        bidirectional: bool = False):
+    def link_relocation(self, trip_location: Tuple[int, int], destination: Tuple[int, int]):
+        """ Add a trigger to teleport the user from one location on map to another. """
         def mod_location(x, y, w, h):
             return x % w, y % h
 
         self.triggers.append(
             GameTrigger.MapSysRelocationTrigger(self,
                                                 mod_location(*trip_location, *self.map_dims),
-                                                mod_location(*destination, *self.map_dims),
-                                                bidirectional))
+                                                mod_location(*destination, *self.map_dims)))
 
         self.main_map.draw_to_map("PORTAL", *mod_location(*trip_location, *self.map_dims))
         self.main_map.draw_to_map("PORTAL", *mod_location(*destination, *self.map_dims))
+
+    def link_relocation_cycle(self, *locations):
+        """ Create a cycle of teleportation points, where each point will lead to the next in the
+            list of locations. """
+        for i in range(len(locations)):
+            self.link_relocation(locations[i-1], locations[i])
 
 
 if __name__ == "__main__":
@@ -433,7 +438,7 @@ if __name__ == "__main__":
     pause_title = TitleSysIO(title="Pause", option_choices=["Continue", "Return to menu"],
                              font_size=12)
 
-    map_system = Map(10, 5, "WALKABLE")
+    map_system = Map(10, 10, "WALKABLE")
     map_system.declare_map_char_block("PORTAL", "[]", walkable=True)
 
     map_sys = MapIO(map_system, 1, 1)
@@ -447,6 +452,6 @@ if __name__ == "__main__":
 
     map_sys.link_sys_change([pause_title], lambda x: x.pause, transient=True)
 
-    map_sys.link_relocation((0, 0), (-1, -1), bidirectional=True)
+    map_sys.link_relocation_cycle((0, 0), (-1, 0), (-1, -1), (0, -1))
 
     start_game_sys([main_title])

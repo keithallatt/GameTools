@@ -11,9 +11,9 @@ from InventorySystem.currency import Wallet, PriceRegistry
 
 
 class InventoryException(Exception):
-    """ Basic exception for errors raised by the inventory system """
+    """ Basic exception for errors raised by the inventory system. """
     def __init__(self, inventory: Union[InventorySystem, Item, None], msg=None):
-        """ Basic exception for errors raised by the inventory system """
+        """ Basic exception for errors raised by the inventory system. """
         if msg is None:
             msg = "An error occurred with Inventory:\n%s" % inventory.pprint_inv()
             super(InventoryException, self).__init__(msg)
@@ -22,7 +22,7 @@ class InventoryException(Exception):
 
 
 class Item:
-    """ An item used in an inventory system """
+    """ An item used in an inventory system. """
     def __init__(self, name: str, **kwargs):
         """ Create an item with a name, and any one of the following keyword arguments. """
         self.quantity = kwargs.get("quantity", 1)
@@ -57,7 +57,7 @@ class Item:
         return " ".join(fields)
 
     def __eq__(self, other):
-        """ Equal items have the same name, may only differ by quantity """
+        """ Equal items have the same name, may only differ by quantity. """
         if other is None:
             return False
 
@@ -69,19 +69,19 @@ class Item:
         return self.name == other.name
 
     def __ne__(self, other):
-        """ must be defined, much like rmul """
+        """ Must be defined, much like rmul. """
         return not self.__eq__(other)
 
     def __mul__(self, other: int):
-        """ Multiplication by integer multiplies quantity """
+        """ Multiplication by integer multiplies quantity. """
         return self.copy(quantity=self.quantity * other)
 
     def __rmul__(self, other):
-        """ Multiplication between integer and item is commutative """
+        """ Multiplication between integer and item is commutative. """
         return self.__mul__(other)
 
     def __add__(self, other: Item):
-        """ Add items in different stacks together """
+        """ Add items in different stacks together."""
         if self != other:
             raise InventoryException(self, msg="Item addition on different items")
         return self.copy(quantity=self.quantity + other.quantity)
@@ -89,7 +89,7 @@ class Item:
     @staticmethod
     def align(item_list):
         """ Items aligned on each field, assuming all items in the list have the
-            same kwargs defined """
+            same kwargs defined. """
         if len(item_list) == 0:
             return []
 
@@ -119,17 +119,15 @@ class Item:
         ]
 
     def copy(self, **kwargs):
-        """
-        Different from copy.deepcopy / copy.copy. Allows a copy to be made
-        while changing certain parameters, keeping all unspecified fields
-        """
+        """ Different from copy.deepcopy / copy.copy. Allows a copy to be made
+            while changing certain parameters, keeping all unspecified fields. """
         kw = self.kwargs.copy()
         kw.update(kwargs)
 
         return Item(self.name, **kw)
 
     def add_self_to_registry(self, registry: PriceRegistry):
-        """ Add this item to the price registry using the current name and price """
+        """ Add this item to the price registry using the current name and price. """
         registry.add_to_registry(self.name, self.price.unstack())
 
 
@@ -160,9 +158,7 @@ class ItemCategory:
 
 class ItemFilter:
     """ Filter for Inventory Systems. Default filter is a blanket block filter. """
-
-    # Blanket accept filter reference.
-    FILTER_ACCEPT_ALL = None
+    FILTER_ACCEPT_ALL = None  # Blanket accept filter reference.
 
     def __init__(self, filter_cats: Dict[Union[ItemCategory, None, Any], bool] = None):
         """ None key in filter_cats corresponds to default behaviour. """
@@ -178,7 +174,7 @@ class ItemFilter:
                                     self.filter_cats[None if item.category is None else Any])
 
     def accepts(self, item_category: ItemCategory):
-        """ Returns whether the item filter accepts any item of the given category """
+        """ Returns whether the item filter accepts any item of the given category. """
         return self.filter_cats.get(item_category,
                                     self.filter_cats[None if item_category is None else Any])
 
@@ -410,7 +406,7 @@ class InventorySystem:
                  or (x.quantity == self.stack_limit and full_stacks))]
 
     def pprint_inv(self):
-        """ Use pretty print module to print inventory structure """
+        """ Use pretty print module to print inventory structure. """
         return pprint.pformat(json.loads(self.serialize_json_pickle()))
 
     def serialize_json_pickle(self):

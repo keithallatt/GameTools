@@ -69,11 +69,7 @@ class ImportSupport:
 
     @staticmethod
     def _find_all_packages():
-        """ Find all import statements of form:
-            'import package',
-            'import package as name', and
-            'from package import things'
-            """
+        """ Find all import statements in all files in modules. """
         # since in a sub-folder
         working_dir = os.sep.join(os.getcwd().split(os.sep)[:-1]) + os.sep
 
