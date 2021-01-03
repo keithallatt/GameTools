@@ -260,7 +260,7 @@ class GameSysIO:
                         transient: bool = False, append: bool = False,
                         key_binding: Union[str, keyboard.Key, keyboard.KeyCode] = None):
         """ When the trigger is set, change to other, transient being if self is set as a
-            return point. Set a key binding if specified """
+            return point. Set a key binding if specified. """
         sys_change_trigger = GameTrigger.GameSysChangeTrigger(target, trigger, transient, append)
 
         if key_binding is not None:
@@ -507,8 +507,8 @@ class ScrollingMapIO(MapIO):
 
 
 if __name__ == "__main__":
-    main_title = TitleSysIO(title="Game", option_choices=["Start", "Quit"])
-    pause_title = TitleSysIO(title="Pause", option_choices=["Continue", "Return to menu"],
+    main_title = TitleSysIO(title="Game", option_choices=["Start (s)", "Quit (q)"])
+    pause_title = TitleSysIO(title="Pause", option_choices=["Continue (c)", "Return to menu (r)"],
                              font_size=12)
 
     map_system = MazeSystem(51, 51)
@@ -517,17 +517,24 @@ if __name__ == "__main__":
     map_sys = ScrollingMapIO(map_system, (1, 1), (21, 21))
 
     main_title.link_sys_change(
-        [], lambda x: x.chosen and x.chosen_option == "Quit",
+        [], lambda x: x.chosen and x.chosen_option.startswith("Quit"),
         key_binding='q'
     )
+    main_title.link_sys_change(
+        [map_sys], lambda x: x.chosen and x.chosen_option.startswith("Start"),
+        key_binding='s'
+    )
 
-    main_title.link_sys_change([map_sys], lambda x: x.chosen and x.chosen_option == "Start")
-
-    pause_title.link_sys_change([main_title],
-                                lambda x: x.chosen and x.chosen_option == "Return to menu")
-    pause_title.link_sys_change([map_sys], lambda x: x.chosen and x.chosen_option == "Continue")
-
+    pause_title.link_sys_change(
+        [map_sys], lambda x: x.chosen and x.chosen_option.startswith("Continue"),
+        key_binding='c'
+    )
+    pause_title.link_sys_change(
+        [main_title], lambda x: x.chosen and x.chosen_option.startswith("Return to menu"),
+        key_binding='r'
+    )
     map_sys.link_sys_change([pause_title], lambda x: False, transient=True, key_binding='p')
+
     map_sys.link_relocation((-2, -2), (1, 1))
 
     start_game_sys([main_title])
