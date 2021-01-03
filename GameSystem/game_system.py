@@ -437,7 +437,7 @@ class MapIO(GameSysIO):
                     self.draw_init()
 
             return self.check_triggers()
-        except _curses.error as e:
+        except _curses.error:
             self.console.erase()
             self.console.refresh()
             curses.endwin()
