@@ -44,6 +44,10 @@ class Map:
             ) for line in self.map]
         )
 
+    def array_to_string(self, line):
+        """ Convert a list to a line of block characters. """
+        return "".join([self.MAP_CHARS[x] for x in line])
+
     def declare_map_char_block(self, block: str, character: str, walkable: bool = False):
         """ Declare a new entry of the map character dictionary. """
         if block in self.MAP_CHARS.keys():
@@ -114,8 +118,8 @@ class MazeSystem(Map):
         """ Generate maze using an iterative stack based approach. """
         w, h = (self.width - 1) // 2, (self.height - 1) // 2
 
-        visited = [[False for _ in range(h)] for __ in range(w)]
-        cells = [(col, row) for col in range(h) for row in range(w)]
+        visited = [[False for _ in range(w)] for __ in range(h)]
+        cells = [(col, row) for col in range(w) for row in range(h)]
 
         # push -> stack.append
         # pop ->  stack.pop
@@ -130,7 +134,7 @@ class MazeSystem(Map):
         stack.append(first_cell)
 
         map_cells = [[1 if col % 2 == 0 or row % 2 == 0 else 0
-                      for col in range(self.height)] for row in range(self.width)]
+                      for col in range(self.width)] for row in range(self.height)]
 
         def cell_to_map(x, y):
             return 2 * x + 1, 2 * y + 1
@@ -142,10 +146,10 @@ class MazeSystem(Map):
             return (x - 1, y) if x > 0 else None
 
         def east(x, y):
-            return (x, y + 1) if y < h - 1 else None
+            return (x, y + 1) if y < w - 1 else None
 
         def south(x, y):
-            return (x + 1, y) if x < w - 1 else None
+            return (x + 1, y) if x < h - 1 else None
 
         def west(x, y):
             return (x, y - 1) if y > 0 else None
