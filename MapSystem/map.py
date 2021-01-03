@@ -106,13 +106,13 @@ class MazeSystem(Map):
         """ Generate a map of a maze with a particular width and height in terms
             of rows and columns of the actual maze, since the map requires tiles
             to provide the walkable area. """
-        super().__init__(width * 2 + 1, height * 2 + 1, *args)
+        super().__init__(width + 1 - (width % 2), height + 1 - (height % 2), *args)
 
         self.map = self._gen_maze()
 
     def _gen_maze(self):
         """ Generate maze using an iterative stack based approach. """
-        w, h = self.width // 2, self.height // 2
+        w, h = (self.width - 1) // 2, (self.height - 1) // 2
 
         visited = [[False for _ in range(h)] for __ in range(w)]
         cells = [(col, row) for col in range(h) for row in range(w)]

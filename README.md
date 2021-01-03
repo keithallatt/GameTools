@@ -308,17 +308,7 @@ ___
 
 ___
 
-<details><summary style="font-size:1.25em;"><del>The NPC System</del></summary>
-</details>
-
-___
-
 <details><summary style="font-size:1.25em;"><del>The Player System</del></summary>
-</details>
-
-___
-
-<details><summary style="font-size:1.25em;"><del>The Combat System</del></summary>
 </details>
 
 ___

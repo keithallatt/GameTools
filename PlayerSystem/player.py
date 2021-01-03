@@ -20,11 +20,13 @@ class PointSystem:
         Can be used for experience (ExpSys)
         or health points (HealthSys)
         or magic, stamina, etc. """
-    def __init__(self, name: str):
+    def __init__(self, name: str, level: int = 0, level_coefficients: np.array = None):
         """ Generate the point system by name and default parameters. """
         self.point_system_name = name
-        self.level = 0
-        self.exp_per_level_coefficients = np.array([1.])
+        self.level = level
+        self.level_coefficients = level_coefficients
+        if level_coefficients is None:
+            self.level_coefficients = np.array([1.])
 
     def limit_for_level(self, level: int, cumulative: bool = False):
         """ Map level to a value which will specify the limit for the given level.
@@ -48,16 +50,12 @@ class PointSystem:
 class ExpSys(PointSystem):
     """ An Experience Point System for gaining experience to level up a character. """
     def __init__(self, level: int = 1, exp: int = 0,
-                 exp_per_level_coefficients: np.array = None):
+                 level_coefficients: np.array = None):
         """ Create an experience system with default limit function
             [exp_per_level(L) = 1.0 + 1.003L - 0.2L^2 + 0.8L^3]. """
-        super().__init__("Experience")
+        super().__init__("Experience", level, np.array([1., 1.003, -0.2, 0.8], dtype=np.float64)
+                         if level_coefficients is None else level_coefficients)
         self.exp = exp
-        self.level = level
-        self.exp_per_level_coefficients = exp_per_level_coefficients
-        if exp_per_level_coefficients is None:
-            self.exp_per_level_coefficients = np.array([1., 1.003, -0.2, 0.8], dtype=np.float64)
-
         self.max_exp = self.limit_for_level(level)
 
     def set_according_to_level(self, level: int):
@@ -68,7 +66,7 @@ class ExpSys(PointSystem):
     def limit_for_level(self, level: int, cumulative: bool = False):
         """ Calculate the new limit based on the level. """
         if cumulative:
-            coefficients = self.exp_per_level_coefficients
+            coefficients = self.level_coefficients
             level_arr = np.repeat(level, coefficients.shape[0])
             exponents = np.arange(0, coefficients.shape[0])
             return int(np.round(np.sum(coefficients * (level_arr ** exponents))))
@@ -94,21 +92,18 @@ class ExpSys(PointSystem):
         """ Display experience points as a bar being filled. """
         if self.exp is None or self.max_exp is None:
             return ""
-        # u2588 is full block
+        # \u2588 is full block
         return '|'+u'\u2588' * (bar_length * self.exp // self.max_exp) + \
                " " * (bar_length - (bar_length * self.exp // self.max_exp)) + "|"
 
 
 class HealthSys(PointSystem):
     """ Health Point system to determine the overall health of an NPC, player or enemy. """
-    def __init__(self, level: int = 1, hp_per_level_coefficients: np.array = None):
+    def __init__(self, level: int = 1, level_coefficients: np.array = None):
         """ Create an health point system with default limit function
             [hp_per_level(L) = 8.0 + 1.0L + 0.5L^2]. """
-        super().__init__("Health")
-        self.hp_per_level_coefficients = hp_per_level_coefficients
-        if hp_per_level_coefficients is None:
-            self.hp_per_level_coefficients = np.array([8., 1., 0.5], dtype=np.float64)
-        self.level = level
+        super().__init__("Health", level, np.array([8., 1., 0.5], dtype=np.float64)
+                         if level_coefficients is None else level_coefficients)
         self.hp = self.max_hp = self.limit_for_level(level)
 
     def set_according_to_level(self, level: int):
@@ -121,7 +116,7 @@ class HealthSys(PointSystem):
     def limit_for_level(self, level: int, cumulative: bool = False):
         """ Calculate the new limit based on the level. """
         if cumulative:
-            coefficients = self.hp_per_level_coefficients
+            coefficients = self.level_coefficients
             level_arr = np.repeat(level, coefficients.shape[0])
             exponents = np.arange(0, coefficients.shape[0])
             return int(np.round(np.sum(coefficients * (level_arr ** exponents))))

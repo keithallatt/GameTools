@@ -1,7 +1,7 @@
 from __future__ import annotations
 import _curses
 import curses
-from MapSystem.map import Map
+from MapSystem.map import Map, MazeSystem
 from pynput import keyboard
 from PIL import Image, ImageDraw, ImageFont
 import numpy as np
@@ -332,7 +332,7 @@ class TitleSysIO(GameSysIO):
 
 class MapIO(GameSysIO):
     """ Create the IO system for a general map. This will be used for general walking around. """
-    def __init__(self, main_map: Map, x_loc: int, y_loc: int):
+    def __init__(self, main_map: Map, location: Tuple[int, int]):
         """ Generate a walkable area map for the user to walk around.
             Default location is provided by the x_loc and y_loc variables. """
         super().__init__()
@@ -343,12 +343,8 @@ class MapIO(GameSysIO):
 
         # this can be more streamlined but it's enough for demonstration purposes...
         self.console.clear()
-
-        self.x_loc = x_loc
-        self.y_loc = y_loc
-
+        self.x_loc, self.y_loc = location
         self.pause = False
-
         self.char = "P1"
 
     def draw_init(self):
@@ -397,10 +393,10 @@ class MapIO(GameSysIO):
             new_x = self.x_max - 1 if new_x >= self.x_max else new_x
             new_y = self.y_max - 1 if new_y >= self.y_max else new_y
 
-            moved = (self.x_loc, self.y_loc) != (new_x, new_y)
-
+            moved = False
             if self.main_map.is_walkable(self.main_map.map[new_y][new_x]):
                 self.x_loc, self.y_loc = new_x, new_y
+                moved = True
 
             self.console.addstr(self.y_loc, self.x_loc * 2, self.char)
             self.console.refresh()
@@ -433,15 +429,27 @@ class MapIO(GameSysIO):
             self.link_relocation(locations[i-1], locations[i])
 
 
+class ScrollingMapIO(MapIO):
+    """ MapIO object that scrolls within a specified window. """
+    def __init__(self, main_map: Map, location: Tuple[int, int], window: Tuple[int, int]):
+        """ Create a scrolling map to interact with. """
+        super().__init__(main_map, location)
+        self.window_size = window
+
+    def draw_init(self):
+        """ Draw the visible window of the map with the player as centered as possible. """
+        pass
+
+
 if __name__ == "__main__":
     main_title = TitleSysIO(title="Game", option_choices=["Start", "Quit"])
     pause_title = TitleSysIO(title="Pause", option_choices=["Continue", "Return to menu"],
                              font_size=12)
 
-    map_system = Map(10, 10, "WALKABLE")
+    map_system = MazeSystem(12, 12)
     map_system.declare_map_char_block("PORTAL", "[]", walkable=True)
 
-    map_sys = MapIO(map_system, 1, 1)
+    map_sys = MapIO(map_system, (1, 1))
 
     main_title.link_sys_change([], lambda x: x.chosen and x.chosen_option == "Quit")
     main_title.link_sys_change([map_sys], lambda x: x.chosen and x.chosen_option == "Start")
@@ -452,6 +460,6 @@ if __name__ == "__main__":
 
     map_sys.link_sys_change([pause_title], lambda x: x.pause, transient=True)
 
-    map_sys.link_relocation_cycle((0, 0), (-1, 0), (-1, -1), (0, -1))
+    map_sys.link_relocation((-2, -2), (1, 1))
 
     start_game_sys([main_title])

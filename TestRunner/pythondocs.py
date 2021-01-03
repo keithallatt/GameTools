@@ -17,7 +17,7 @@ class PythonDocs:
         if thing.__doc__ is not None:
             # rudimentary grammar check
             if thing.__doc__.strip() != "":
-                if not thing.__doc__.strip().endswith(".") :
+                if not thing.__doc__.strip().endswith("."):
                     print("No '.' ending:", thing)
                 if not thing.__doc__.strip()[0] == thing.__doc__.strip()[0].upper():
                     print("No capitalization:", thing)
