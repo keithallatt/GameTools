@@ -65,7 +65,6 @@ class Map:
 
     def draw_rect_to_map(self, character, x_location, y_location, w, h):
         """ Draw a rectangle to the map, using a specific character. """
-        # TODO: make fill rect method
         for i in range(x_location, x_location + w):
             self.draw_to_map(character, i, y_location)
             self.draw_to_map(character, i, y_location + h - 1)
@@ -75,7 +74,6 @@ class Map:
 
     def fill_rect_to_map(self, character, x_location, y_location, w, h):
         """ Fill a rectangle to the map, using a specific character. """
-        # TODO: make fill rect method
         for i in range(x_location, x_location + w):
             for j in range(y_location, y_location + h):
                 self.draw_to_map(character, i, j)

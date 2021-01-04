@@ -33,7 +33,7 @@ class InventoryTest(TestCase):
         """ Test whether or not exceptions are raised by illegal operations. """
         inv = InventorySystem(stack_limit=3,
                               max_slots=3,
-                              item_filter=ItemFilter.FILTER_ACCEPT_ALL)
+                              item_filter=ItemFilter(accept_all=True))
         foo = Item("foo")
 
         # test removing non existent item
@@ -57,7 +57,7 @@ class InventoryTest(TestCase):
             for bar_q in range(50):
 
                 inv = InventorySystem(stack_limit=99,
-                                      item_filter=ItemFilter.FILTER_ACCEPT_ALL)
+                                      item_filter=ItemFilter(accept_all=True))
                 foo = Item("foo")
                 bar = Item("bar")
 

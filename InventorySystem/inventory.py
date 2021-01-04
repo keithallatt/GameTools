@@ -158,12 +158,11 @@ class ItemCategory:
 
 class ItemFilter:
     """ Filter for Inventory Systems. Default filter is a blanket block filter. """
-    FILTER_ACCEPT_ALL = None  # Blanket accept filter reference.
-
-    def __init__(self, filter_cats: Dict[Union[ItemCategory, None, Any], bool] = None):
+    def __init__(self, filter_cats: Dict[Union[ItemCategory, None, Any], bool] = None,
+                 accept_all: bool = False):
         """ None key in filter_cats corresponds to default behaviour. """
         self.filter_cats = {
-            None: False, Any: False
+            None: accept_all, Any: accept_all
         }
         if filter_cats is not None:
             self.filter_cats.update(filter_cats)
@@ -508,7 +507,7 @@ class Inventory:
     def __init__(self, **kwargs):
         """ Create an inventory (collection of inventory pages). """
         self.pages = list(kwargs.get("pages", [
-            InventorySystem(item_filter=ItemFilter.FILTER_ACCEPT_ALL)
+            InventorySystem(item_filter=ItemFilter(accept_all=True))
         ]))
         self.all_pages_in_str = bool(kwargs.get("all_pages_in_str", True))
         self.page_display = int(kwargs.get("page_display", 0))
@@ -614,32 +613,3 @@ class Inventory:
                 if inv_copy.pages[i].item_filter.accepts(it_cat):
                     inv_copy.pages[i] -= it
         return inv_copy
-
-
-ItemFilter.FILTER_ACCEPT_ALL = ItemFilter({None: True, Any: True})
-
-
-if __name__ == "__main__":
-    bows_cat = ItemCategory("Bows", stack_limit=1)
-    arrows_cat = ItemCategory("Arrows")
-
-    wooden_bow = Item("Wooden Bow", category=bows_cat)
-    travelers_bow = Item("Traveler's Bow", category=bows_cat)
-    knights_bow = Item("Knight's Bow", category=bows_cat)
-
-    arrow = Item("Arrow", category=arrows_cat)
-    fire_arrow = Item("Fire Arrow", category=arrows_cat)
-    ice_arrow = Item("Ice Arrow", category=arrows_cat)
-    shock_arrow = Item("Shock Arrow", category=arrows_cat)
-
-    inv = InventorySystem(item_filter=ItemFilter({bows_cat: True, arrows_cat: True}))
-
-    inv += 2 * travelers_bow
-    inv += 3 * knights_bow
-
-    inv += 99 * arrow
-    inv += 99 * fire_arrow
-    inv += 99 * ice_arrow
-    inv += 99 * shock_arrow
-
-    print(inv)

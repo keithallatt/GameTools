@@ -1,7 +1,7 @@
 from __future__ import annotations
 import _curses
 import curses
-from MapSystem.map import Map, MazeSystem
+from MapSystem.map import Map
 from pynput import keyboard
 from PIL import Image, ImageDraw, ImageFont
 import numpy as np
@@ -18,13 +18,35 @@ If not running in Pycharm: (curses library)
 """
 
 
-def ascii_art(text: str, font: str = "Arial.ttf", font_size: int = 15, x_margin: int = 0,
-              y_margin: int = 0, shadow_char: str = u'\u2591', fill_char: str = u'\u2588',
-              double_width: bool = False, trim: bool = False, shadow: bool = False,
-              full_shadow: bool = False):
+def ascii_art(text: str,
+              font: str = "Arial.ttf",
+              font_size: int = 15,
+              x_margin: int = 0,
+              y_margin: int = 0,
+              x_padding: int = 1,
+              y_padding: int = 1,
+              shadow_char: str = u'\u2591',
+              fill_char: str = u'\u2588',
+              back_char: str = u' ',
+              double_width: bool = False,
+              trim: bool = True,
+              shadow: Union[int, str] = 0):
     """ Draw Ascii Art of text of a particular font and font size. """
-    if full_shadow:
-        shadow = True
+
+    if type(shadow) == str:
+        shadow = {
+            'small_lr': 0b10,
+            'small_ll': 0b1000,
+            'small_ul': 0b100000,
+            'small_ur': 0b10000000,
+            'normal_lr': 0b111,
+            'normal_ll': 0b11100,
+            'normal_ul': 0b1110000,
+            'normal_ur': 0b11000001,
+        }.get(shadow, 0)
+
+    shadow_directions = [(0, 1), (1, 1), (1, 0), (1, -1), (0, -1), (-1, -1), (-1, 0), (-1, 1)]
+    shadow_directions = [shadow_directions[i] for i in range(8) if 0 != shadow & 1 << i]
 
     try:
         font_object = ImageFont.truetype(font, font_size)
@@ -48,22 +70,11 @@ def ascii_art(text: str, font: str = "Arial.ttf", font_size: int = 15, x_margin:
     draw = ImageDraw.Draw(img)
     draw.text((x_margin, y_margin), text, "white", font=font_object)
 
-    pixels = np.array(img, dtype=np.uint8)
+    pixels = 2 * np.array(img, dtype=np.uint8)
+    pixels_copy = np.array(img, dtype=np.uint8)
 
-    if shadow:
-        shadow_pixels_diagonal = np.roll(pixels, (1, 1), axis=(0, 1))
-        shadow_pixels_top = shadow_pixels_diagonal
-        shadow_pixels_bottom = shadow_pixels_diagonal
-        if full_shadow:
-            shadow_pixels_top = np.roll(pixels, (1, 0), axis=(0, 1))
-            shadow_pixels_bottom = np.roll(pixels, (0, 1), axis=(0, 1))
-
-        pixels = 2*pixels
-        pixels = np.maximum(pixels, shadow_pixels_diagonal)
-        pixels = np.maximum(pixels, shadow_pixels_top)
-        pixels = np.maximum(pixels, shadow_pixels_bottom)
-    else:
-        pixels = 2 * pixels
+    for shadow_dir in shadow_directions:
+        pixels = np.maximum(pixels, np.roll(pixels_copy, shadow_dir, axis=(0, 1)))
 
     if trim:
         # while pixels' edges are all zeros
@@ -76,7 +87,17 @@ def ascii_art(text: str, font: str = "Arial.ttf", font_size: int = 15, x_margin:
         while not np.any(pixels[-1, :]):
             pixels = pixels[:-1, :]
 
-    chars = np.array([' ', shadow_char, fill_char], dtype="U1")[pixels]
+    new_w, new_h = pixels.shape
+    new_w += 2 * x_padding
+    new_h += 2 * y_padding
+
+    new_pixels = np.zeros(shape=(new_w, new_h), dtype=np.uint8)
+
+    new_pixels[x_padding: new_w - x_padding, y_padding: new_h - y_padding] = pixels
+
+    pixels = new_pixels
+
+    chars = np.array([back_char, shadow_char, fill_char], dtype="U1")[pixels]
     strings = chars.view('U' + str(chars.shape[1])).flatten()
 
     string = "\n".join(strings)
@@ -290,15 +311,15 @@ class GameSysIO:
                 exit(0)
 
 
-class TitleSysIO(GameSysIO):
-    """ Initialize a title screen IO system. Displays ascii art of the
-        game title or particular menu. """
+class MenuSysIO(GameSysIO):
+    """ Initialize a title screen / menu screen IO system.
+        Displays ascii art of the game title or particular menu. """
     def __init__(self, title: str, option_choices: list[str] = None, option_choice: int = 0,
                  font_size: int = 15):
         """ Create a title screen or menu. """
         super().__init__()
 
-        self.art = ascii_art(title, shadow=True, font_size=font_size)
+        self.art = ascii_art(title, shadow='small_lr', font_size=font_size)
 
         self.option_choices = [
             "Start", "Quit"
@@ -504,37 +525,3 @@ class ScrollingMapIO(MapIO):
 
         self.console.addstr(self.y_loc - y_window, (self.x_loc - x_window) * 2, self.char)
         self.console.refresh()
-
-
-if __name__ == "__main__":
-    main_title = TitleSysIO(title="Game", option_choices=["Start (s)", "Quit (q)"])
-    pause_title = TitleSysIO(title="Pause", option_choices=["Continue (c)", "Return to menu (r)"],
-                             font_size=12)
-
-    map_system = MazeSystem(51, 51)
-    map_system.declare_map_char_block("PORTAL", "[]", walkable=True)
-
-    map_sys = ScrollingMapIO(map_system, (1, 1), (21, 21))
-
-    main_title.link_sys_change(
-        [], lambda x: x.chosen and x.chosen_option.startswith("Quit"),
-        key_binding='q'
-    )
-    main_title.link_sys_change(
-        [map_sys], lambda x: x.chosen and x.chosen_option.startswith("Start"),
-        key_binding='s'
-    )
-
-    pause_title.link_sys_change(
-        [map_sys], lambda x: x.chosen and x.chosen_option.startswith("Continue"),
-        key_binding='c'
-    )
-    pause_title.link_sys_change(
-        [main_title], lambda x: x.chosen and x.chosen_option.startswith("Return to menu"),
-        key_binding='r'
-    )
-    map_sys.link_sys_change([pause_title], lambda x: False, transient=True, key_binding='p')
-
-    map_sys.link_relocation((-2, -2), (1, 1))
-
-    start_game_sys([main_title])
