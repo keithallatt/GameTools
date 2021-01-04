@@ -501,18 +501,18 @@ class ScrollingMapIO(MapIO):
         # bottom right corner location
         ox_window, oy_window = x_window + w_window, y_window + h_window
 
-        while x_window < 0:
-            x_window += 1
-            ox_window += 1
-        while y_window < 0:
-            y_window += 1
-            oy_window += 1
         while ox_window > self.x_max:
             x_window -= 1
             ox_window -= 1
         while oy_window > self.y_max:
             y_window -= 1
             oy_window -= 1
+        while x_window < 0:
+            x_window += 1
+            ox_window += 1
+        while y_window < 0:
+            y_window += 1
+            oy_window += 1
 
         np_map = np.array(self.main_map.map, dtype=np.unicode)
 

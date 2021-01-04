@@ -109,7 +109,6 @@ class MazeSystem(Map):
             of rows and columns of the actual maze, since the map requires tiles
             to provide the walkable area. """
         super().__init__(width + 1 - (width % 2), height + 1 - (height % 2), *args)
-
         self.map = self._gen_maze()
 
     def _gen_maze(self):

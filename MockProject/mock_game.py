@@ -9,10 +9,10 @@ if __name__ == "__main__":
                             option_choices=["Continue (c)", "Return to menu (r)", "Quit (q)"],
                             font_size=12)
 
-    map_system = MazeSystem(51, 51)
+    map_system = MazeSystem(41, 41)
     map_system.declare_map_char_block("PORTAL", "[]", walkable=True)
 
-    map_sys = ScrollingMapIO(map_system, (1, 1), (21, 21))
+    map_sys = ScrollingMapIO(map_system, (1, 1), (31, 31))
 
     main_title.link_sys_change(
         [], lambda x: x.chosen and x.chosen_option.startswith("Quit"),
