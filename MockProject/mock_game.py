@@ -1,7 +1,9 @@
-from GameSystem.game_system import MenuSysIO, ScrollingMapIO, start_game_sys
+from GameSystem.game_system import MenuSysIO, ScrollingMapIO, start_game_sys, Render
 from MapSystem.map import MazeSystem
 
 if __name__ == "__main__":
+    render = Render.Border(window=(0, 0, 33, 33))
+
     main_title = MenuSysIO(title="Game",
                            option_choices=["Start (s)", "Quit (q)"],
                            font_size=18)
@@ -12,7 +14,8 @@ if __name__ == "__main__":
     map_system = MazeSystem(41, 41)
     map_system.declare_map_char_block("PORTAL", "[]", walkable=True)
 
-    map_sys = ScrollingMapIO(map_system, (1, 1), (31, 31))
+    map_sys = ScrollingMapIO(map_system, (1, 1), (31, 31),
+                             render=render)
 
     main_title.link_sys_change(
         [], lambda x: x.chosen and x.chosen_option.startswith("Quit"),
@@ -35,7 +38,10 @@ if __name__ == "__main__":
         [], lambda x: x.chosen and x.chosen_option.startswith("Quit"),
         key_binding='q'
     )
-    map_sys.link_sys_change([pause_title], lambda x: False, transient=True, key_binding='p')
+    map_sys.link_sys_change(
+        [pause_title], lambda x: False, transient=True,
+        key_binding='p'
+    )
 
     map_sys.link_relocation((-2, -2), (1, 1))
 

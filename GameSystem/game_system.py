@@ -18,19 +18,10 @@ If not running in Pycharm: (curses library)
 """
 
 
-def ascii_art(text: str,
-              font: str = "Arial.ttf",
-              font_size: int = 15,
-              x_margin: int = 0,
-              y_margin: int = 0,
-              x_padding: int = 1,
-              y_padding: int = 1,
-              shadow_char: str = u'\u2591',
-              fill_char: str = u'\u2588',
-              back_char: str = u' ',
-              double_width: bool = False,
-              trim: bool = True,
-              shadow: Union[int, str] = 0):
+def ascii_art(text: str, font: str = "Arial.ttf", font_size: int = 15,
+              x_margin: int = 0, y_margin: int = 0, x_padding: int = 1, y_padding: int = 1,
+              shadow_char: str = u'\u2591', fill_char: str = u'\u2588', back_char: str = u' ',
+              double_width: bool = False, trim: bool = True, shadow: Union[int, str] = 0):
     """ Draw Ascii Art of text of a particular font and font size. """
 
     if type(shadow) == str:
@@ -103,9 +94,7 @@ def ascii_art(text: str,
     string = "\n".join(strings)
 
     if double_width:
-        string = string.replace(" ", "  ")
-        string = string.replace(fill_char, 2 * fill_char)
-        string = string.replace(shadow_char, 2 * shadow_char)
+        string = "\n".join(["".join([char * 2 for char in line]) for line in string.split("\n")])
 
     return string
 
@@ -116,6 +105,119 @@ def start_game_sys(game_queue: list):
     GameSysIO.running = True
     game_thread = Thread(target=GameSysIO.game_timer)
     game_thread.start()
+
+
+class Render:
+    class RenderException(Exception):
+        def __init__(self, msg=None):
+            """ Basic exception for errors raised by the render layer system. """
+            if msg is None:
+                msg = "An error occurred with Inventory"
+                super(Render.RenderException, self).__init__(msg)
+            self.msg = msg
+
+    class Layer:
+        """ Create a render layer for curses. """
+        def __init__(self, window: Tuple[int, int, int, int] = (0, 0, None, None),
+                     cell_dims: Tuple[int, int] = (2, 1), render_super_layer: Render.Layer = None):
+            """ Create a render layer with (x,y)-offset and a screen dimension. """
+            self.x_offset, self.y_offset, self.width, self.height = window
+            self.cell_width, self.cell_height = cell_dims
+            self.console = render_super_layer
+            if self.console is None:
+                self.console = Render.BaseLayer((0, 0, window[2], window[3]), cell_dims)
+    
+        def addstr(self, row, col, text):
+            display_text = text
+            if self.width is not None:
+                max_text_length = self.width * self.cell_width - col
+    
+                display_text = text[: max_text_length]
+    
+                pass
+    
+            if self.height is None or row < self.height:
+                self.console.addstr(self.y_offset * self.cell_height + row,
+                                    self.x_offset * self.cell_width + col,
+                                    display_text)
+    
+        def erase(self):
+            self.console.erase()
+    
+        def refresh(self):
+            self.console.refresh()
+
+    class BaseLayer(Layer):
+        """ Create a base render layer for curses. """
+        def __init__(self, window: Tuple[int, int, int, int] = (0, 0, None, None),
+                     cell_dims: Tuple[int, int] = (2, 1)):
+            """ Create a render layer with (x,y)-offset and a screen dimension. """
+            super().__init__(window, cell_dims, self)
+            self.console = curses.initscr()  # initialize is our playground
+            curses.curs_set(0)
+    
+        def addstr(self, row, col, text):
+            display_text = text
+            if self.width is not None:
+                max_text_length = self.width * self.cell_width - col
+    
+                display_text = text[: max_text_length]
+    
+                pass
+    
+            if self.height is None or row < self.height:
+                self.console.addstr(self.y_offset * self.cell_height + row,
+                                    self.x_offset * self.cell_width + col,
+                                    display_text)
+    
+        def erase(self):
+            self.console.erase()
+    
+        def refresh(self):
+            self.console.refresh()
+
+    class Border(Layer):
+        """ Creates a render layer with a border """
+        def __init__(self, window: Tuple[int, int, int, int] = (0, 0, None, None),
+                     cell_dims: Tuple[int, int] = (2, 1), render_super_layer: Render.Layer = None):
+            if None in window and render_super_layer is None:
+                raise Render.RenderException("Cannot border unbounded render layer.")
+
+            if render_super_layer is None:
+                width, height = window[2], window[3]
+
+                render_border = Render.Layer(window=(0, 0, width, height),
+                                             cell_dims=cell_dims)
+                render_super = Render.Layer(window=(1, 1, width-1, height-1),
+                                            cell_dims=cell_dims,
+                                            render_super_layer=render_border)
+                super().__init__(window, cell_dims, render_super)
+                # border faces
+                self.border_tf = "\u2500\u2500"
+                self.border_lf = "\u2502 "
+                self.border_rf = " \u2502"
+                self.border_bf = "\u2500\u2500"
+
+                # border corners
+                self.border_tl = "\u250C\u2500"
+                self.border_bl = "\u2514\u2500"
+                self.border_tr = "\u2500\u2510"
+                self.border_br = "\u2500\u2518"
+            else:
+                pass
+
+        def refresh(self):
+            self.console.console.addstr(0, 0, self.border_tl + self.border_tf * (self.width - 2) +
+                                        self.border_tr)
+
+            for i in range(self.height - 2):
+                self.console.console.addstr(i+1, 0, self.border_lf)
+                self.console.console.addstr(i+1, (self.width-1) * self.cell_width, self.border_rf)
+
+            self.console.console.addstr((self.height - 2) * self.cell_height, 0, self.border_bl +
+                                        self.border_bf * (self.width - 2) + self.border_br)
+
+            self.console.refresh()
 
 
 class GameTrigger:
@@ -161,8 +263,8 @@ class GameTrigger:
                     if self.transient:
                         GameSysIO.game_queue.append(game_sys)
 
-                    game_sys.console.erase()
-                    game_sys.console.refresh()
+                    game_sys.render.erase()
+                    game_sys.render.refresh()
                     curses.endwin()
                     return False
             except AttributeError:
@@ -191,9 +293,9 @@ class GameTrigger:
                     self.target.x_loc, self.target.y_loc = self.destination
 
                     # redraw character.
-                    game_sys.console.erase()
+                    game_sys.render.erase()
                     game_sys.draw_init()
-                    game_sys.console.refresh()
+                    game_sys.render.refresh()
 
                     return True
             except AttributeError:
@@ -219,12 +321,11 @@ class GameTrigger:
 
 class GameSysIO:
     """ General IO for game system. """
-    def __init__(self):
+    def __init__(self, render: Render.Layer = None):
         """ Initialize curses and hide the cursor. The methods of this
             new instantiated object are those that the key listener events
             will be passed to. """
-        self.console = curses.initscr()  # initialize is our playground
-        curses.curs_set(0)
+        self.render = Render.Layer() if render is None else render
         self.exception = None
         self.exit_code = None
         self.triggers = []
@@ -250,18 +351,18 @@ class GameSysIO:
         """ Restart an ended GameSysIO object after control was given to a
             new object. This could be for pausing purposes, or as a saved
             state. """
-        self.console.erase()
+        self.render.erase()
         self.draw_init()
-        self.console.addstr(0, 0, "Loading... ")
-        self.console.refresh()
+        self.render.addstr(0, 0, "Loading... ")
+        self.render.refresh()
 
         with keyboard.Listener(on_press=self.on_press,
                                on_release=self.on_release,
                                suppress=True) as listener:
             time.sleep(0.1)
-            self.console.erase()
+            self.render.erase()
             self.draw_init()
-            self.console.refresh()
+            self.render.refresh()
 
             listener.join()
 
@@ -315,9 +416,9 @@ class MenuSysIO(GameSysIO):
     """ Initialize a title screen / menu screen IO system.
         Displays ascii art of the game title or particular menu. """
     def __init__(self, title: str, option_choices: list[str] = None, option_choice: int = 0,
-                 font_size: int = 15):
+                 font_size: int = 15, render: Render.Layer = None):
         """ Create a title screen or menu. """
-        super().__init__()
+        super().__init__(render=render)
 
         self.art = ascii_art(title, shadow='small_lr', font_size=font_size)
 
@@ -335,22 +436,22 @@ class MenuSysIO(GameSysIO):
 
     def draw_init(self):
         """ Draw the menu with the default option selected. """
-        self.console.erase()
+        self.render.erase()
 
         for i in range(len(self.board)):
-            self.console.addstr(i, 0, self.board[i])
+            self.render.addstr(i, 0, self.board[i])
 
         for i in range(len(self.option_choices)):
-            self.console.addstr(len(self.board)+2+i, 3, self.option_choices[i])
-        self.console.addstr(len(self.board)+2, 1, ">")
+            self.render.addstr(len(self.board)+2+i, 3, self.option_choices[i])
+        self.render.addstr(len(self.board)+2, 1, ">")
 
-        self.console.refresh()
+        self.render.refresh()
 
     def on_press(self, key: keyboard.Key):
         """ Check if the user is choosing a new option (up / down arrow keys). """
         super().on_press(key)
         try:
-            self.console.addstr(len(self.board)+2+self.option_choice, 1, " ")
+            self.render.addstr(len(self.board)+2+self.option_choice, 1, " ")
 
             if key == keyboard.Key.up:
                 self.option_choice = max(self.option_choice-1, 0)
@@ -360,13 +461,13 @@ class MenuSysIO(GameSysIO):
             if key == keyboard.Key.enter:
                 self.chosen_option = self.option_choices[self.option_choice]
 
-            self.console.addstr(len(self.board)+2+self.option_choice, 1, ">")
-            self.console.refresh()
+            self.render.addstr(len(self.board)+2+self.option_choice, 1, ">")
+            self.render.refresh()
 
             return self.check_triggers()
         except _curses.error:
-            self.console.erase()
-            self.console.refresh()
+            self.render.erase()
+            self.render.refresh()
             curses.endwin()
             return False
 
@@ -382,17 +483,17 @@ class MenuSysIO(GameSysIO):
 
 class MapIO(GameSysIO):
     """ Create the IO system for a general map. This will be used for general walking around. """
-    def __init__(self, main_map: Map, location: Tuple[int, int]):
+    def __init__(self, main_map: Map, location: Tuple[int, int], render: Render.Layer = None):
         """ Generate a walkable area map for the user to walk around.
             Default location is provided by the x_loc and y_loc variables. """
-        super().__init__()
+        super().__init__(render=render)
 
         self.main_map = main_map
         self.map_dims = main_map.dims
         self.x_max, self.y_max = main_map.dims
 
         # this can be more streamlined but it's enough for demonstration purposes...
-        self.console.erase()
+        self.render.erase()
         self.x_loc, self.y_loc = location
         self.pause = False
         self.char = "P1"
@@ -401,15 +502,15 @@ class MapIO(GameSysIO):
 
     def draw_init(self):
         """ Draw the map and current location of the player. """
-        self.console.erase()
+        self.render.erase()
 
         board = str(self.main_map).split("\n")
 
         for i in range(len(board)):
-            self.console.addstr(i, 0, board[i])
+            self.render.addstr(i, 0, board[i])
 
-        self.console.addstr(self.y_loc, self.x_loc * 2, self.char)
-        self.console.refresh()
+        self.render.addstr(self.y_loc, self.x_loc * 2, self.char)
+        self.render.refresh()
 
     def on_press(self, key: keyboard.Key):
         """ Check to see if the user is moving (arrow keys), or pausing ('p'). """
@@ -420,8 +521,8 @@ class MapIO(GameSysIO):
 
             if not self.refresh_on_key_press:
                 # if updating a static map (MapIO, not ScrollingMapIO)
-                self.console.addstr(self.y_loc, self.x_loc * 2,
-                                    self.main_map.MAP_CHARS[self.main_map.map[new_y][new_x]])
+                self.render.addstr(self.y_loc, self.x_loc * 2,
+                                   self.main_map.MAP_CHARS[self.main_map.map[new_y][new_x]])
 
             old_char = self.char
 
@@ -450,8 +551,8 @@ class MapIO(GameSysIO):
 
             if not self.refresh_on_key_press:
                 # if updating a static map (MapIO, not ScrollingMapIO)
-                self.console.addstr(self.y_loc, self.x_loc * 2, self.char)
-                self.console.refresh()
+                self.render.addstr(self.y_loc, self.x_loc * 2, self.char)
+                self.render.refresh()
 
             if self.moved:
                 if self.refresh_on_key_press:
@@ -459,8 +560,8 @@ class MapIO(GameSysIO):
 
             return self.check_triggers()
         except _curses.error:
-            self.console.erase()
-            self.console.refresh()
+            self.render.erase()
+            self.render.refresh()
             curses.endwin()
             return False
 
@@ -486,9 +587,10 @@ class MapIO(GameSysIO):
 
 class ScrollingMapIO(MapIO):
     """ MapIO object that scrolls within a specified window. """
-    def __init__(self, main_map: Map, location: Tuple[int, int], window: Tuple[int, int]):
+    def __init__(self, main_map: Map, location: Tuple[int, int], window: Tuple[int, int],
+                 render: Render.Layer = None):
         """ Create a scrolling map to interact with. """
-        super().__init__(main_map, location)
+        super().__init__(main_map, location, render=render)
         self.window_size = window
         self.refresh_on_key_press = True
 
@@ -518,10 +620,10 @@ class ScrollingMapIO(MapIO):
 
         np_map = np_map[y_window:oy_window, x_window:ox_window]
 
-        self.console.erase()
+        self.render.erase()
 
         for line in range(len(np_map)):
-            self.console.addstr(line, 0, self.main_map.array_to_string(np_map[line]))
+            self.render.addstr(line, 0, self.main_map.array_to_string(np_map[line]))
 
-        self.console.addstr(self.y_loc - y_window, (self.x_loc - x_window) * 2, self.char)
-        self.console.refresh()
+        self.render.addstr(self.y_loc - y_window, (self.x_loc - x_window) * 2, self.char)
+        self.render.refresh()
