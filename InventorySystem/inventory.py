@@ -346,6 +346,7 @@ class InventorySystem(jp.JSONEncodable):
 
         # initialized as empty inventory
         self._contents = []
+        self.kwargs.update({"_contents": self._contents})
         self.kwargs.update({"num_items": 0})
 
         # maximum number of items per stack

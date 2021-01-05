@@ -90,23 +90,31 @@ class JSONDecoder(json.JSONDecoder):
 
 if __name__ == '__main__':
     import InventorySystem.inventory as inventory
-    from collections import OrderedDict
 
-    registry = inventory.PriceRegistry(registry={
-        "Foo": 2
-    })
+    shield_cat = inventory.ItemCategory(name="Shields")
+    weapons_cat = inventory.ItemCategory(name="Weapons")
+    food_cat = inventory.ItemCategory(name="Food")
 
-    curr_sys = inventory.CurrencySystem(relative_denominations=OrderedDict({
-        "Gold": 1, "Silver": 5, "Copper": 10
-    }))
+    filters = inventory.ItemFilter.generate_filters([[shield_cat], [weapons_cat], [food_cat]])
 
-    wallet = inventory.Wallet(curr_sys=curr_sys, amount=124)
+    inv_sys_objs = [
+        inventory.InventorySystem(item_filter=filter)
+        for filter in filters
+    ]
 
-    pickled_obj = wallet
+    inv = inventory.Inventory(pages=inv_sys_objs)
+
+    inv += inventory.Item("Bow", quantity=3, stack_limit=1, category=weapons_cat)
+    inv += inventory.Item("Sword", quantity=2, stack_limit=1, category=weapons_cat)
+    inv += inventory.Item("Shield", quantity=2, stack_limit=1, category=shield_cat)
+    inv += inventory.Item("Apples", quantity=59, category=food_cat)
+
+    pickled_obj = inv
 
     freeze = json.dumps(pickled_obj, cls=JSONEncoder, indent=2)
+    print(freeze)
     thawed = json.loads(freeze, cls=JSONDecoder)
 
-    print(pickled_obj, freeze, thawed, sep="\n")
+    #/print("Freeze thawed correctly:", pickled_obj == thawed)
 
-    print(pickled_obj == thawed)
+    #print(thawed)
