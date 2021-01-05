@@ -20,11 +20,10 @@ def add_module_path(working_dir, sd):
 
 
 def remove_comments_and_docstrings(source_code):
-    """ Modified slightly from:
-    <a href="
-    https://stackoverflow.com/questions/1769332/script-to-remove-python-comments-docstrings
-    ">Here</a>.
-    """
+    """ Modified slightly from: <a href="
+        https://stackoverflow.com/questions/1769332/script-to-remove-python-comments-docstrings
+        ">Here.</a> Removes comments and docstrings from source code, to allow count_lines to
+         accurately count the number of lines of code. """
     io_obj = StringIO(source_code)
     out = ""
     prev_tok_type = tokenize.INDENT
@@ -58,11 +57,9 @@ def remove_comments_and_docstrings(source_code):
 
 def count_lines(start, lines=0, source_loc=0, files=0,
                 show_header=True, begin_start=None, condense=False):
-    """ Modified slightly from:
-    <a href="
-    https://stackoverflow.com/questions/38543709/count-lines-of-code-in-directory-using-python
-    ">Here</a>.
-    """
+    """ Modified slightly from: <a href="
+        https://stackoverflow.com/questions/38543709/count-lines-of-code-in-directory-using-python
+        ">Here.</a> Counts number of source lines of code and raw number of lines in each file. """
 
     if start.endswith("__pycache__"):
         return lines, source_loc, files
@@ -123,8 +120,7 @@ def count_lines(start, lines=0, source_loc=0, files=0,
 
 def statistics(source: str, condensed: bool = False):
     """ Generate statistics about the project, such as the number of files scanned,
-        the number of lines of text, and the number of source lines of code.
-    """
+        the number of lines of text, and the number of source lines of code. """
     working_dir = source
     if working_dir[-1] != os.sep:
         working_dir += os.sep
@@ -171,7 +167,7 @@ def statistics(source: str, condensed: bool = False):
 
 
 def run_all_tests(source: str):
-    """ Run all unit tests as found.  """
+    """ Run all unit tests as found. """
     # working dir needs to be **/GameTools/
     working_dir = source
     if working_dir[-1] != os.sep:

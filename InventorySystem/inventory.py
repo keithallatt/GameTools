@@ -1,11 +1,14 @@
 from __future__ import annotations
 from ansiwrap import *
 import copy
-from typing import Union, Dict, Any, List
+from typing import Union, Dict, Any, List, IO
 import warnings
 import random
-from InventorySystem.currency import Wallet, PriceRegistry
-from GameSystem.json_pickler import JSONEncodable
+import GameSystem.json_pickler as jp
+from collections import OrderedDict
+import math
+from io import TextIOWrapper
+import json
 
 
 class InventoryException(Exception):
@@ -19,34 +22,47 @@ class InventoryException(Exception):
         self.inv = inventory
 
 
-class Item(JSONEncodable):
+class CurrencyException(Exception):
+    """ Currency related exception. Allows a more narrow scope for error handling. """
+    def __init__(self, cause: Union[Wallet, CurrencySystem] = None, msg: str = None):
+        """ Currency related exception. Allows a more narrow scope for error handling. """
+        if msg is None:
+            msg = "An error occurred with Currency System:\n"
+            super(CurrencyException, self).__init__(msg)
+        self.msg = msg
+        self.cause = cause
+
+
+class Item(jp.JSONEncodable):
     """ An item used in an inventory system. """
     def __init__(self, name: str, **kwargs):
         """ Create an item with a name, and any one of the following keyword arguments. """
         self.quantity = kwargs.get("quantity", 1)
-        kwargs.update({"quantity": self.quantity})
 
         self.stack_limit = kwargs.get("stack_limit", None)
-        kwargs.update({"stack_limit": self.stack_limit})
         self.max_slots = kwargs.get("max_slots", None)
-        kwargs.update({"max_slots": self.max_slots})
 
         self.category = kwargs.get("category", None)
-        kwargs.update({"category": self.category})
         self.price = kwargs.get("price", None)
         if type(self.price) == int:
             # if provided a number:
             self.price = Wallet(amount=self.price)
-        kwargs.update({"price": self.price})
 
         self.unit_weight = kwargs.get("unit_weight", None)
-        kwargs.update({"unit_weight": self.unit_weight})
 
         if self.unit_weight is not None and self.unit_weight <= 0:
             raise InventoryException(self, msg="Item with non-positive weight defined.")
 
         self.name = " ".join([n.capitalize() for n in name.split(" ")])
-        self.kwargs = kwargs
+
+        self.kwargs = {}
+        self.kwargs.update({"quantity": self.quantity})
+        self.kwargs.update({"stack_limit": self.stack_limit})
+        self.kwargs.update({"max_slots": self.max_slots})
+        self.kwargs.update({"category": self.category})
+        self.kwargs.update({"price": self.price})
+        self.kwargs.update({"unit_weight": self.unit_weight})
+        self.kwargs.update({"name": self.name})
 
     def __str__(self):
         """ Join all provided fields as space separated list of fields."""
@@ -84,6 +100,42 @@ class Item(JSONEncodable):
             raise InventoryException(self, msg="Item addition on different items")
         return self.copy(quantity=self.quantity + other.quantity)
 
+    def fields(self):
+        """ Return a list of fields required to display the item as part of
+            an inventory system, including ansi colors around particular fields. """
+        return [
+            self.name,
+            ("~" if self.quantity == 0 else "") +
+            ("x" + str(self.quantity) if self.quantity != 1 else ""),
+            (str(self.unit_weight) + "g" if self.unit_weight is not None else ""),
+            (" ".join(str(self.price).split("\n")) if self.price is not None else "")
+        ]
+
+    def copy(self, **kwargs):
+        """ Different from copy.deepcopy / copy.copy. Allows a copy to be made
+            while changing certain parameters, keeping all unspecified fields. """
+        kw = self.kwargs.copy()
+        kw.update(kwargs)
+
+        return Item(**kw)
+
+    def add_self_to_registry(self, registry: PriceRegistry):
+        """ Add this item to the price registry using the current name and price. """
+        registry.add_to_registry(self.name, self.price.unstack())
+
+    def json_encode(self) -> dict:
+        """ Encode into JSON. """
+        return self.kwargs
+
+    @classmethod
+    def json_decode(cls, obj_json: dict):
+        """ Decode JSON into an item. """
+
+        name = obj_json['name']
+        obj_json.pop('name')
+
+        return Item(name, **obj_json)
+
     @staticmethod
     def align(item_list):
         """ Items aligned on each field, assuming all items in the list have the
@@ -105,35 +157,8 @@ class Item(JSONEncodable):
 
         return item_strings
 
-    def fields(self):
-        """ Return a list of fields required to display the item as part of
-            an inventory system, including ansi colors around particular fields. """
-        return [
-            self.name,
-            ("~" if self.quantity == 0 else "") +
-            ("x" + str(self.quantity) if self.quantity != 1 else ""),
-            (str(self.unit_weight) + "g" if self.unit_weight is not None else ""),
-            (" ".join(str(self.price).split("\n")) if self.price is not None else "")
-        ]
 
-    def copy(self, **kwargs):
-        """ Different from copy.deepcopy / copy.copy. Allows a copy to be made
-            while changing certain parameters, keeping all unspecified fields. """
-        kw = self.kwargs.copy()
-        kw.update(kwargs)
-
-        return Item(self.name, **kw)
-
-    def add_self_to_registry(self, registry: PriceRegistry):
-        """ Add this item to the price registry using the current name and price. """
-        registry.add_to_registry(self.name, self.price.unstack())
-
-    def json_encode(self) -> dict:
-        """ Encode into JSON. """
-        return self.kwargs
-
-
-class ItemCategory(JSONEncodable):
+class ItemCategory(jp.JSONEncodable):
     """ Category for items. Each item can belong to multiple categories, but it is
         recommended that only one be used. """
     def __init__(self, name: str, **kwargs):
@@ -164,8 +189,12 @@ class ItemCategory(JSONEncodable):
             "max_slots": self.max_slots
         }
 
+    @classmethod
+    def json_decode(cls, obj_json):
+        return ItemCategory(**obj_json)
 
-class ItemFilter(JSONEncodable):
+
+class ItemFilter(jp.JSONEncodable):
     """ Filter for Inventory Systems. Default filter is a blanket block filter. """
     def __init__(self, filter_cats: Dict[Union[ItemCategory, None, Any], bool] = None,
                  accept_all: bool = False):
@@ -175,6 +204,17 @@ class ItemFilter(JSONEncodable):
         }
         if filter_cats is not None:
             self.filter_cats.update(filter_cats)
+
+    def __str__(self):
+        """ Return the string representation as a set of category names / Any / None
+            and the corresponding acceptance or denial of items of that type. """
+        return str({str(k): v for k, v in self.filter_cats.items()})
+
+    def __eq__(self, other):
+        if type(other) == ItemFilter:
+            return self.filter_cats == other.filter_cats
+        else:
+            return False
 
     def accept(self, item: Item):
         """ Returns whether the described item filter accepts the item based on its category. """
@@ -217,6 +257,56 @@ class ItemFilter(JSONEncodable):
         return self.filter_cats[None] and self.filter_cats[Any] and \
             False not in list(self.filter_cats.values())
 
+    def json_encode(self) -> dict:
+        """ Encode filter into list of accepted categories and rejected categories. """
+        hashable = {
+            "accepts": [],
+            "rejects": []
+        }
+
+        for k, v in self.filter_cats.items():
+            # k is Any, None or Item Category
+            k_repr = k
+            if k is Any:
+                k_repr = '<Any>'
+            elif k is ItemCategory:
+                k_repr = k.json_encode()
+            if v:
+                hashable['accepts'].append(k_repr)
+            else:
+                hashable['rejects'].append(k_repr)
+        return hashable
+
+    @classmethod
+    def json_decode(cls, obj_json):
+        accepts = obj_json['accepts']
+        rejects = obj_json['rejects']
+
+        filter_cats = {}
+
+        for acceptance in accepts:
+            if type(acceptance) == str:
+                if acceptance == '<Any>':
+                    category = Any
+                else:
+                    raise Exception
+            else:
+                category = acceptance
+
+            filter_cats.update({category: True})
+        for reject in rejects:
+            if type(reject) == str:
+                if reject == '<Any>':
+                    category = Any
+                else:
+                    raise Exception
+            else:
+                category = reject
+
+            filter_cats.update({category: False})
+
+        return ItemFilter(filter_cats)
+
     @classmethod
     def generate_filters(cls, filter_list: List[List[Union[ItemCategory, None]]]):
         """ Generate a list of filters such that for each element of filter_list,
@@ -240,38 +330,13 @@ class ItemFilter(JSONEncodable):
 
         return [ItemFilter(f) for f in defined_filters]
 
-    def __str__(self):
-        """ Return the string representation as a set of category names / Any / None
-            and the corresponding acceptance or denial of items of that type. """
-        return str({str(k): v for k, v in self.filter_cats.items()})
 
-    def json_encode(self) -> dict:
-        """  """
-        hashable = {
-            "accepts": [],
-            "rejects": []
-        }
-
-        for k, v in self.filter_cats.items():
-            # k is Any, None or Item Category
-            k_repr = k
-            if k is Any:
-                k_repr = '<Any>'
-            elif k is ItemCategory:
-                k_repr = k.json_encode()
-            if v:
-                hashable['accepts'].append(k_repr)
-            else:
-                hashable['rejects'].append(k_repr)
-        return hashable
-
-
-class InventorySystem(JSONEncodable):
+class InventorySystem(jp.JSONEncodable):
     """ A flexible inventory system. """
     def __init__(self, **kwargs):
         """ Generate an inventory system (inventory page)
             based on the following keyword arguments. """
-        self.kwargs = kwargs
+        self.kwargs = {}
 
         # Maximum number of inventory slots.
         self.max_slots = kwargs.get("max_slots", None)
@@ -313,6 +378,83 @@ class InventorySystem(JSONEncodable):
                 warnings.warn("Weight based system with stack limit defined")
             if self.max_slots is not None:
                 warnings.warn("Weight based system with maximum slot capacity limit")
+
+    def __add__(self, other: Union[Item, list[Item]]):
+        """ Add a single item or a list of items to the inventory. """
+        if type(other) == Item:
+            return copy.deepcopy(self)._add_item(other)
+        else:
+            inv_copy = copy.deepcopy(self)
+            for item in other:
+                inv_copy._add_item(item)
+            return inv_copy
+
+    def __sub__(self, other: Union[Item, list[Item]]):
+        """ Remove a single item or a list of items to the inventory. """
+        if type(other) == Item:
+            return copy.deepcopy(self)._remove_item(other)
+        else:
+            inv_copy = copy.deepcopy(self)
+            for item in other:
+                inv_copy._remove_item(item)
+            return inv_copy
+
+    def __eq__(self, other):
+        if type(other) == InventorySystem:
+            eq_kw = True
+            for key in self.kwargs.keys():
+                if key == "_contents":
+                    self.get_contents().sort(key=lambda it: it.name)
+                    other.get_contents().sort(key=lambda it: it.name)
+                    eq_kw = eq_kw if self.get_contents() == other.get_contents() else False
+                else:
+                    eq_kw = eq_kw if self.kwargs[key] == other.kwargs.get(key, None) else False
+
+            return eq_kw
+        else:
+            return False
+
+    def __str__(self):
+        """ Display inventory as a list of items with their parameters. """
+        self._contents.sort(key=lambda item: item.quantity, reverse=True)
+        self._contents.sort(key=lambda item: item.name)
+        self._contents.sort(key=lambda item: item.name if item.category is None
+                            else item.category.name)
+
+        inv_name = ""
+        if self.item_filter is not None:
+            # get all categories
+            categories = [c.name
+                          for c, v in self.item_filter.filter_cats.items()
+                          if v and c is not None and c is not Any]
+
+            if self.item_filter.filter_cats[None]:
+                categories += ["General"]
+            if self.item_filter.filter_cats[Any]:
+                categories = ["Categorized"]
+            if self.item_filter.filter_cats[None] and self.item_filter.filter_cats[Any]:
+                categories = ["All" if self.item_filter.is_all_encompassing() else "Other"]
+
+            inv_name = "| " + " & ".join(categories)
+
+        item_lst_str = Item.align(self._contents)
+
+        text_ = "Empty Inventory"
+
+        width = max(
+            [ansilen(inv_name), (ansilen(text_)+1 if len(self._contents) == 0 else 0)] +
+            [ansilen(i) for i in item_lst_str])
+
+        l_end = "+-" + "-" * width + "+"
+        presentation = "| " + "\n| ".join(item_lst_str)
+        if presentation == "| ":
+            presentation += text_
+
+        return "\n".join([l_end,
+                          inv_name + " " * (len(l_end) - ansilen(inv_name) - 1) + "|",
+                          l_end,
+                          "\n".join([p + " " * (len(l_end) - ansilen(p) - 1) + "|"
+                                     for p in presentation.split("\n")]), l_end])
 
     def _add_item(self, it: Item, new_slot=False):
         """ Add an item / a number of items to the inventory.
@@ -438,9 +580,8 @@ class InventorySystem(JSONEncodable):
                 (self.stack_limit is None or x.quantity < self.stack_limit
                  or (x.quantity == self.stack_limit and full_stacks))]
 
-    def json_encode(self) -> dict:
-        """ Serialize inventory into JSON. Not fully functional for nested custom classes. """
-        return self.kwargs
+    def get_contents(self):
+        return self._contents
 
     def set_stack_limit(self, stack_limit):
         """ Set new stack limit. Throws exception if new stack limit * max slots < current items
@@ -469,70 +610,20 @@ class InventorySystem(JSONEncodable):
         """ Return a copy of the contents. """
         return self._contents[::]
 
-    def __add__(self, other: Union[Item, list[Item]]):
-        """ Add a single item or a list of items to the inventory. """
-        if type(other) == Item:
-            return copy.deepcopy(self)._add_item(other)
-        else:
-            inv_copy = copy.deepcopy(self)
-            for item in other:
-                inv_copy._add_item(item)
-            return inv_copy
+    def json_encode(self) -> dict:
+        """ Serialize inventory into JSON. Not fully functional for nested custom classes. """
+        return self.kwargs
 
-    def __sub__(self, other: Union[Item, list[Item]]):
-        """ Remove a single item or a list of items to the inventory. """
-        if type(other) == Item:
-            return copy.deepcopy(self)._remove_item(other)
-        else:
-            inv_copy = copy.deepcopy(self)
-            for item in other:
-                inv_copy._remove_item(item)
-            return inv_copy
-
-    def __str__(self):
-        """ Display inventory as a list of items with their parameters. """
-        self._contents.sort(key=lambda item: item.quantity, reverse=True)
-        self._contents.sort(key=lambda item: item.name)
-        self._contents.sort(key=lambda item: item.name if item.category is None
-                            else item.category.name)
-
-        inv_name = ""
-        if self.item_filter is not None:
-            # get all categories
-            categories = [c.name
-                          for c, v in self.item_filter.filter_cats.items()
-                          if v and c is not None and c is not Any]
-
-            if self.item_filter.filter_cats[None]:
-                categories += ["General"]
-            if self.item_filter.filter_cats[Any]:
-                categories = ["Categorized"]
-            if self.item_filter.filter_cats[None] and self.item_filter.filter_cats[Any]:
-                categories = ["All" if self.item_filter.is_all_encompassing() else "Other"]
-
-            inv_name = "| " + " & ".join(categories)
-
-        item_lst_str = Item.align(self._contents)
-
-        text_ = "Empty Inventory"
-
-        width = max(
-            [ansilen(inv_name), (ansilen(text_)+1 if len(self._contents) == 0 else 0)] +
-            [ansilen(i) for i in item_lst_str])
-
-        l_end = "+-" + "-" * width + "+"
-        presentation = "| " + "\n| ".join(item_lst_str)
-        if presentation == "| ":
-            presentation += text_
-
-        return "\n".join([l_end,
-                          inv_name + " " * (len(l_end) - ansilen(inv_name) - 1) + "|",
-                          l_end,
-                          "\n".join([p + " " * (len(l_end) - ansilen(p) - 1) + "|"
-                                     for p in presentation.split("\n")]), l_end])
+    @classmethod
+    def json_decode(cls, obj_json):
+        """ Turn dictionary back into Inventory System. """
+        inv_sys = InventorySystem(**obj_json)
+        for item in obj_json["_contents"]:
+            inv_sys += item
+        return inv_sys
 
 
-class Inventory(JSONEncodable):
+class Inventory(jp.JSONEncodable):
     """ Collection of Inventory Systems. """
     def __init__(self, **kwargs):
         """ Create an inventory (collection of inventory pages). """
@@ -644,9 +735,316 @@ class Inventory(JSONEncodable):
                     inv_copy.pages[i] -= it
         return inv_copy
 
+    def __eq__(self, other):
+        if type(other) == Inventory:
+            if self.all_pages_in_str != other.all_pages_in_str:
+                return False
+            if self.all_pages_in_str != other.all_pages_in_str:
+                return False
+            for page in self.pages:
+                if page not in other.pages:
+                    return False
+            for page in other.pages:
+                if page not in self.pages:
+                    return False
+            return True
+        else:
+            return False
+
     def json_encode(self) -> dict:
         return {
             "all_pages_in_str": self.all_pages_in_str,
             "page_display": self.page_display,
             "pages": self.pages,
         }
+
+    @classmethod
+    def json_decode(cls, obj_json):
+        return Inventory(**obj_json)
+
+
+class PriceRegistry(jp.JSONEncodable):
+    """ Represents a unified list for any shopkeeper npc to use to buy items from the player. """
+    def __init__(self, registry: dict[str, int] = None,
+                 read_file: Union[TextIOWrapper, Union[IO, IO[bytes]]] = None,
+                 read_file_path: str = None):  # file path to open itself
+        """ Create a price registry from file. """
+        # read_file -> direct file / text io object to read from
+        if read_file is None and read_file_path is not None:
+            try:
+                read_file = open(read_file_path, 'r')
+            except FileNotFoundError:
+                read_file = None
+
+        if read_file is not None and read_file_path is None:
+            read_file_path = read_file.name
+
+        self.read_file = read_file
+        self.read_file_path = read_file_path
+
+        self.registry = registry
+        if registry is None:
+            self.registry = {}
+
+        if read_file is not None:
+            try:
+                self.registry = json.loads(read_file.read())
+            except json.decoder.JSONDecodeError:
+                warnings.warn(f"Registry file {read_file_path} corrupted.")
+                self.registry = {}
+            finally:
+                read_file.close()
+
+    def __str__(self):
+        """ Represent the registry as a list of items and prices. """
+        return "\n".join([k + " -> " + str(v) for k, v in self.registry.items()])
+
+    def __eq__(self, other):
+        if type(other) == PriceRegistry:
+            return self.registry == other.registry
+        else:
+            return False
+
+    def add_to_registry(self, item_name: str, item_price: int):
+        """ Add a new entry to the registry. """
+        self.registry.update({item_name: item_price})
+
+    def read_from_registry(self, item_name: str):
+        """ Retrieve the entry from the registry. """
+        return self.registry.get(item_name, None)
+
+    def json_encode(self) -> dict:
+        """ Encode registry as JSON, so return registry of strings and integers. """
+        return {"registry": self.registry}
+
+    @classmethod
+    def json_decode(cls, obj_json):
+        return PriceRegistry(registry=obj_json['registry'])
+
+
+class Wallet(jp.JSONEncodable):
+    """ Represents a wallet that can store amounts of a
+        denomination defined by a CurrencySystem. """
+    def __init__(self, curr_sys: CurrencySystem = None, amount: int = 0):
+        """ Create a wallet with a given currency system and initial amount stored. """
+        if amount < 0:
+            raise CurrencyException(msg="Cannot have indebted wallet.")
+        if curr_sys is None:
+            curr_sys = CurrencySystem()
+        self.wallet = {denomination: 0 for denomination in curr_sys.denominations}
+        lowest_denomination = curr_sys.denominations[-1]
+        self.wallet[lowest_denomination] = amount
+        self.curr_sys = curr_sys
+        self.auto_stack()
+
+    def __str__(self):
+        """ Return as block, where each line represents a certain denomination and the amount
+            the wallet contains of that denomination. """
+        max_len = max([len(denomination) for denomination in self.curr_sys.denominations],
+                      default=0)
+        return "\n".join(
+            [
+                denomination + ": " + " " * (max_len - len(denomination)) +
+                str(self.wallet[denomination]) for denomination in self.curr_sys.denominations
+            ]
+        )
+
+    def __add__(self, other: Wallet):
+        """ Returns self + other in terms of currency amounts. """
+        return Wallet(curr_sys=self.curr_sys, amount=(self.unstack() + other.unstack()))
+
+    def __sub__(self, other: Wallet):
+        """ Returns self - other in terms of currency amounts. """
+        return Wallet(curr_sys=self.curr_sys, amount=(self.unstack() - other.unstack()))
+
+    def __gt__(self, other):
+        """ Returns self > other in terms of currency amounts. """
+        return self.unstack().__gt__(other.unstack())
+
+    def __lt__(self, other):
+        """ Returns self < other in terms of currency amounts. """
+        return self.unstack().__lt__(other.unstack())
+
+    def __ge__(self, other):
+        """ Returns self >= other in terms of currency amounts. """
+        return self.unstack().__ge__(other.unstack())
+
+    def __le__(self, other):
+        """ Returns self <= other in terms of currency amounts. """
+        return self.unstack().__le__(other.unstack())
+
+    def __eq__(self, other):
+        """ Returns self == other in terms of currency amounts. """
+        if type(other) == Wallet:
+            return self.unstack().__eq__(other.unstack())
+        else:
+            return False
+
+    def __ne__(self, other):
+        """ Returns self != other in terms of currency amounts. """
+        return self.unstack().__ne__(other.unstack())
+
+    def add_currency(self, denomination, amount, auto_stack=True):
+        """ Adds amount of denomination to wallet, returns True on successful addition,
+            False on unsuccessful addition. """
+        try:
+            self.wallet[denomination] += amount
+            if auto_stack:
+                self.auto_stack()
+            return True
+        except KeyError:
+            return False
+
+    def auto_stack(self):
+        """ Stack currency from highest value to lowest value. Inverse of unstack method. """
+        lowest_denomination = self.curr_sys.denominations[-1]
+        total_amount = self.unstack()
+
+        new_wallet = OrderedDict({
+            denomination: 0 for denomination in self.curr_sys.denominations
+        })
+
+        current_value = 0
+        for denomination in self.curr_sys.denominations:
+            amount = self.curr_sys.convert(lowest_denomination,
+                                           total_amount - current_value,
+                                           denomination,
+                                           whole_number=True)
+            current_value += self.curr_sys.convert(denomination,
+                                                   amount,
+                                                   lowest_denomination)
+            new_wallet[denomination] = amount
+
+        # ensure old value and new value are the same.
+
+        if self.unstack() != self.unstack(wallet=new_wallet):
+            raise CurrencyException(msg="Auto stack method created differently valued wallet.")
+
+        self.wallet = new_wallet
+
+    def unstack(self, wallet=None):
+        """ Return the amount this wallet is worth in it's lowest valued denomination.
+            Inverse of auto_stack method. """
+        if wallet is None:
+            wallet = self.wallet
+        lowest_denomination = self.curr_sys.denominations[-1]
+        amount = 0
+        for denomination in self.curr_sys.denominations:
+            amount += self.curr_sys.convert(denomination,
+                                            wallet[denomination],
+                                            lowest_denomination)
+
+        return amount
+
+    def json_encode(self) -> dict:
+        """ Encode wallet as JSON dictionary. """
+        return {
+            "curr_sys": self.curr_sys.json_encode(),
+            "wallet": self.wallet
+        }
+
+    @classmethod
+    def json_decode(cls, obj_json):
+
+        curr_sys = CurrencySystem.json_decode(obj_json['curr_sys'])
+        wallet = obj_json['wallet']
+
+        ret_val = Wallet(curr_sys=curr_sys)
+
+        for k, v in wallet.items():
+            ret_val.add_currency(k, v)
+
+        return ret_val
+
+
+class CurrencySystem(jp.JSONEncodable):
+    """ Represents a Currency system, like Gold, Silver and Copper pieces,
+        where 1 gold = 7 silver, 1 silver = 13 copper etc. """
+    def __init__(self, relative_denominations: OrderedDict[str, int] = None):
+        """
+        For all denominations other than the highest valued denomination (first entry),
+        the value associated with that key is the amount of that denomination that is
+        equivalent in worth the next most valued denomination.
+        I.e. 1 * key(denomination[i]) is equivalent to
+             value(denomination[i+1]) * key(denomination[i+1]).
+        """
+        if relative_denominations is None:
+            self.denominations = ["Gold"]
+            self.relative_denominations = {"Gold": 1}
+        else:
+            self.denominations = list(relative_denominations.keys())
+            self.relative_denominations = relative_denominations
+
+        if len(self.relative_denominations) == 0:
+            raise CurrencyException(msg="Cannot have empty currency system",
+                                    cause=self)
+        if self.relative_denominations[list(self.relative_denominations.keys())[0]] != 1:
+            raise CurrencyException(msg="Cannot have most valued denomination worth != 1",
+                                    cause=self)
+
+    def __eq__(self, other):
+        if type(other) == CurrencySystem:
+            return self.relative_denominations == other.relative_denominations
+        else:
+            return False
+
+    def convert(self, denomination1: str, amount: int, denomination2: str, whole_number=False):
+        """ Convert the amount of denomination1 into the relative amount of denomination 2.
+            If whole_number is true, then round the value down to the largest integer less
+            than the true amount. """
+        # if the denominations are the same, then don't make a conversion
+        if denomination1 == denomination2:
+            return amount
+
+        ind1 = list(self.relative_denominations.keys()).index(denomination1)
+        ind2 = list(self.relative_denominations.keys()).index(denomination2)
+
+        # if denomination1 is a more valuable denomination
+        while ind1 < ind2:
+            ind1 += 1
+            amount *= self.relative_denominations[self.denominations[ind1]]
+
+        # if denomination2 is a more valuable denomination
+        while ind1 > ind2:
+            amount /= self.relative_denominations[self.denominations[ind1]]
+            ind1 -= 1
+
+        # round if necessary
+        if whole_number:
+            return math.floor(amount)
+
+        return amount
+
+    def json_encode(self) -> dict:
+        """ Encode currency system as JSON serializable dictionary. """
+        return {
+            "relative_denominations": dict(
+                {
+                    t[0]:
+                        {
+                            "rel_val": t[1],
+                            "index": i
+                        }
+                    for t, i in zip(self.relative_denominations.items(),
+                                    range(len(self.denominations)))
+                }
+            )
+        }
+
+    @classmethod
+    def json_decode(cls, obj_json):
+        """ Decode JSON serializable dictionary into currency system.  """
+        od = OrderedDict()
+
+        rel_den_dct = obj_json['relative_denominations']
+
+        denominations = [
+            (k, v['rel_val'], v['index']) for k, v in rel_den_dct.items()
+        ]
+
+        denominations.sort(key=lambda x: x[2])
+
+        for denomination in denominations:
+            od.update({denomination[0]: denomination[1]})
+
+        return CurrencySystem(relative_denominations=od)

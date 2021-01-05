@@ -1,6 +1,5 @@
 from __future__ import annotations
-from InventorySystem.inventory import Inventory, Item, InventoryException
-from InventorySystem.currency import Wallet, CurrencySystem
+from InventorySystem.inventory import Inventory, Item, InventoryException, Wallet, CurrencySystem
 import numpy as np
 import math
 from ansiwrap import *

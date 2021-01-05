@@ -33,6 +33,7 @@ class PythonDocs:
         """ Generate the portion of the Python Docs relating to this particular class. """
         class_name, class_ref = cls
         class_members = inspect.getmembers(class_ref, predicate=inspect.isfunction)
+        class_members += inspect.getmembers(class_ref, predicate=inspect.ismethod)
         class_members = [m for m in class_members if m[1].__module__ == class_ref.__module__]
 
         subclass_members = inspect.getmembers(class_ref, predicate=inspect.isclass)
@@ -118,10 +119,13 @@ class PythonDocs:
             function_members = inspect.getmembers(current_module, inspect.isfunction)
             function_members = [m for m in function_members if m[1].__module__ == module]
 
+            method_members = inspect.getmembers(current_module, inspect.ismethod)
+            method_members = [m for m in method_members if m[1].__module__ == module]
+
             if len(function_members) != 0:
                 yield "<table style=\"width:100%\">\n"
                 yield "<tr><th style=\"width:" + str(PythonDocs.method_column_width)+"%\">"
-                yield "Method name"
+                yield "Functions"
                 yield "</th><th>"
                 yield "Description"
                 yield "</th></tr>\n"
@@ -134,6 +138,24 @@ class PythonDocs:
                     yield "</td>\n</tr>\n"
 
                 yield "</table><br />\n"
+
+            if len(method_members) != 0:
+                yield "<table style=\"width:100%\">\n"
+                yield "<tr><th style=\"width:" + str(PythonDocs.method_column_width)+"%\">"
+                yield "Methods"
+                yield "</th><th>"
+                yield "Description"
+                yield "</th></tr>\n"
+
+                for method in method_members:
+                    yield "<tr>\n"
+                    yield "<th style=\"width:" + str(PythonDocs.method_column_width)+"%\">\n"
+                    yield method[0] + "\n</th>\n<td>\n"
+                    yield PythonDocs.generate_python_docstrings(method[1])
+                    yield "</td>\n</tr>\n"
+
+                yield "</table><br />\n"
+
 
             for cls in class_members:
                 for thing in PythonDocs.generate_class_python_docs(cls):
