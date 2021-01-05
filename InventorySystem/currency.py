@@ -3,9 +3,9 @@ from collections import OrderedDict
 from typing import Union, IO
 import math
 from io import TextIOWrapper
-import os
 import json
 import warnings
+from GameSystem.json_pickler import JSONEncodable
 
 
 class CurrencyException(Exception):
@@ -19,7 +19,7 @@ class CurrencyException(Exception):
         self.cause = cause
 
 
-class PriceRegistry:
+class PriceRegistry(JSONEncodable):
     """ Represents a unified list for any shopkeeper npc to use to buy items from the player. """
     def __init__(self, registry: dict[str, int] = None,
                  read_file: Union[TextIOWrapper, Union[IO, IO[bytes]]] = None,
@@ -59,22 +59,16 @@ class PriceRegistry:
         """ Add a new entry to the registry. """
         self.registry.update({item_name: item_price})
 
-    def save_to_file(self, read_file_path: str = None):
-        """ Save the registry to file. """
-        if read_file_path is not None:
-            self.read_file_path = read_file_path
-        if self.read_file_path is None:
-            raise CurrencyException(msg="No read file provided.")
-        with open(self.read_file_path, 'w') as file:
-            file.write(json.dumps(self.registry, indent=4, sort_keys=True))
-            file.close()
-
     def read_from_registry(self, item_name: str):
         """ Retrieve the entry from the registry. """
         return self.registry.get(item_name, None)
 
+    def json_encode(self) -> dict:
+        """ Encode registry as JSON, so return registry of strings and integers. """
+        return self.registry
 
-class Wallet:
+
+class Wallet(JSONEncodable):
     """ Represents a wallet that can store amounts of a
         denomination defined by a CurrencySystem. """
     def __init__(self, curr_sys: CurrencySystem = None, amount: int = 0):
@@ -153,6 +147,13 @@ class Wallet:
 
         return amount
 
+    def json_encode(self) -> dict:
+        """ Encode wallet as JSON dictionary. """
+        return {
+            "curr_sys": self.curr_sys.json_encode(),
+            "wallet": self.wallet
+        }
+
     def __add__(self, other: Wallet):
         """ Returns self + other in terms of currency amounts. """
         return Wallet(curr_sys=self.curr_sys, amount=(self.unstack() + other.unstack()))
@@ -186,7 +187,7 @@ class Wallet:
         return self.unstack().__ne__(other.unstack())
 
 
-class CurrencySystem:
+class CurrencySystem(JSONEncodable):
     """ Represents a Currency system, like Gold, Silver and Copper pieces,
         where 1 gold = 7 silver, 1 silver = 13 copper etc. """
     def __init__(self, relative_denominations: OrderedDict[str, int] = None):
@@ -238,13 +239,9 @@ class CurrencySystem:
 
         return amount
 
-
-if __name__ == "__main__":
-    mock_project = "MockProject"
-    mock_dir = os.sep.join(os.getcwd().split(os.sep)[:-1]) + os.sep + mock_project + os.sep
-    mock_registry = mock_dir + "Registry.json"
-
-    pr = PriceRegistry(read_file_path=mock_registry)
-    print(pr)
-
-    pr.save_to_file()
+    def json_encode(self) -> dict:
+        """ Encode currency system as JSON dictionary """
+        return {
+            "denominations": self.denominations,
+            "relative_denominations": dict(self.relative_denominations)
+        }

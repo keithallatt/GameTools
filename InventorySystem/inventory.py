@@ -1,13 +1,11 @@
 from __future__ import annotations
 from ansiwrap import *
-import jsonpickle
-import json
 import copy
-import pprint
 from typing import Union, Dict, Any, List
 import warnings
 import random
 from InventorySystem.currency import Wallet, PriceRegistry
+from GameSystem.json_pickler import JSONEncodable
 
 
 class InventoryException(Exception):
@@ -15,13 +13,13 @@ class InventoryException(Exception):
     def __init__(self, inventory: Union[InventorySystem, Item, None], msg=None):
         """ Basic exception for errors raised by the inventory system. """
         if msg is None:
-            msg = "An error occurred with Inventory:\n%s" % inventory.pprint_inv()
+            msg = "An error occurred with Inventory"
             super(InventoryException, self).__init__(msg)
         self.msg = msg
         self.inv = inventory
 
 
-class Item:
+class Item(JSONEncodable):
     """ An item used in an inventory system. """
     def __init__(self, name: str, **kwargs):
         """ Create an item with a name, and any one of the following keyword arguments. """
@@ -130,14 +128,17 @@ class Item:
         """ Add this item to the price registry using the current name and price. """
         registry.add_to_registry(self.name, self.price.unstack())
 
+    def json_encode(self) -> dict:
+        """ Encode into JSON. """
+        return self.kwargs
 
-class ItemCategory:
+
+class ItemCategory(JSONEncodable):
     """ Category for items. Each item can belong to multiple categories, but it is
         recommended that only one be used. """
     def __init__(self, name: str, **kwargs):
         """ Define a new category. Can include stack limits or max slot capacities. """
         self.name = name
-
         self.stack_limit = kwargs.get("stack_limit", None)
         self.max_slots = kwargs.get("max_slots", None)
 
@@ -155,8 +156,16 @@ class ItemCategory:
         """ Return hash of string representation. """
         return hash(str(self))
 
+    def json_encode(self) -> dict:
+        """ Return as dictionary to allow JSON encoding. """
+        return {
+            "name": self.name,
+            "stack_limit": self.stack_limit,
+            "max_slots": self.max_slots
+        }
 
-class ItemFilter:
+
+class ItemFilter(JSONEncodable):
     """ Filter for Inventory Systems. Default filter is a blanket block filter. """
     def __init__(self, filter_cats: Dict[Union[ItemCategory, None, Any], bool] = None,
                  accept_all: bool = False):
@@ -236,8 +245,28 @@ class ItemFilter:
             and the corresponding acceptance or denial of items of that type. """
         return str({str(k): v for k, v in self.filter_cats.items()})
 
+    def json_encode(self) -> dict:
+        """  """
+        hashable = {
+            "accepts": [],
+            "rejects": []
+        }
 
-class InventorySystem:
+        for k, v in self.filter_cats.items():
+            # k is Any, None or Item Category
+            k_repr = k
+            if k is Any:
+                k_repr = '<Any>'
+            elif k is ItemCategory:
+                k_repr = k.json_encode()
+            if v:
+                hashable['accepts'].append(k_repr)
+            else:
+                hashable['rejects'].append(k_repr)
+        return hashable
+
+
+class InventorySystem(JSONEncodable):
     """ A flexible inventory system. """
     def __init__(self, **kwargs):
         """ Generate an inventory system (inventory page)
@@ -252,7 +281,7 @@ class InventorySystem:
 
         # initialized as empty inventory
         self._contents = []
-        self.kwargs.update({"num_items": len(self._contents)})
+        self.kwargs.update({"num_items": 0})
 
         # maximum number of items per stack
         self.stack_limit = kwargs.get("stack_limit", None)
@@ -368,7 +397,12 @@ class InventorySystem:
                 else:
                     raise InventoryException(self, msg="Item added to full inventory")
 
-        self.kwargs.update({"num_items": len(self._contents)})
+        num_items = sum([
+            x.quantity for x in self._contents
+        ])
+
+        self.kwargs.update({"num_items": num_items})
+        self.kwargs.update({"_contents": self._contents})
         return self
 
     def _remove_item(self, it: Item):
@@ -404,13 +438,9 @@ class InventorySystem:
                 (self.stack_limit is None or x.quantity < self.stack_limit
                  or (x.quantity == self.stack_limit and full_stacks))]
 
-    def pprint_inv(self):
-        """ Use pretty print module to print inventory structure. """
-        return pprint.pformat(json.loads(self.serialize_json_pickle()))
-
-    def serialize_json_pickle(self):
+    def json_encode(self) -> dict:
         """ Serialize inventory into JSON. Not fully functional for nested custom classes. """
-        return jsonpickle.encode(self, make_refs=False)
+        return self.kwargs
 
     def set_stack_limit(self, stack_limit):
         """ Set new stack limit. Throws exception if new stack limit * max slots < current items
@@ -502,7 +532,7 @@ class InventorySystem:
                                      for p in presentation.split("\n")]), l_end])
 
 
-class Inventory:
+class Inventory(JSONEncodable):
     """ Collection of Inventory Systems. """
     def __init__(self, **kwargs):
         """ Create an inventory (collection of inventory pages). """
@@ -613,3 +643,10 @@ class Inventory:
                 if inv_copy.pages[i].item_filter.accepts(it_cat):
                     inv_copy.pages[i] -= it
         return inv_copy
+
+    def json_encode(self) -> dict:
+        return {
+            "all_pages_in_str": self.all_pages_in_str,
+            "page_display": self.page_display,
+            "pages": self.pages,
+        }
