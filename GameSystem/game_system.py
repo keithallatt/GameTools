@@ -179,32 +179,34 @@ class Render:
     class Border(Layer):
         """ Creates a render layer with a border """
         def __init__(self, window: Tuple[int, int, int, int] = (0, 0, None, None),
-                     cell_dims: Tuple[int, int] = (2, 1), render_super_layer: Render.Layer = None):
+                     cell_dims: Tuple[int, int] = (2, 1), render_super_layer: Render.Layer = None,
+                     **kwargs):
             if None in window and render_super_layer is None:
                 raise Render.RenderException("Cannot border unbounded render layer.")
 
-            if render_super_layer is None:
-                width, height = window[2], window[3]
+            width, height = window[2], window[3]
 
-                render_border = Render.Layer(window=(0, 0, width, height),
-                                             cell_dims=cell_dims)
-                render_super = Render.Layer(window=(1, 1, width-1, height-1),
-                                            cell_dims=cell_dims,
-                                            render_super_layer=render_border)
-                super().__init__(window, cell_dims, render_super)
-                # border faces
-                self.border_tf = "\u2500\u2500"
-                self.border_lf = "\u2502 "
-                self.border_rf = " \u2502"
-                self.border_bf = "\u2500\u2500"
-
-                # border corners
-                self.border_tl = "\u250C\u2500"
-                self.border_bl = "\u2514\u2500"
-                self.border_tr = "\u2500\u2510"
-                self.border_br = "\u2500\u2518"
-            else:
-                pass
+            render_border = Render.Layer(window=(0, 0, width, height),
+                                         cell_dims=cell_dims,
+                                         render_super_layer=render_super_layer)
+            render_super = Render.Layer(window=(1, 1, width-1, height-1),
+                                        cell_dims=cell_dims,
+                                        render_super_layer=render_border)
+            super().__init__(window, cell_dims, render_super)
+            # border faces
+            self.border_tf = kwargs.get("border_tf", kwargs.get("top", "\u2500\u2500"))
+            self.border_lf = kwargs.get("border_lf", kwargs.get("left", "\u2502 "))
+            self.border_rf = kwargs.get("border_rf", kwargs.get("right", " \u2502"))
+            self.border_bf = kwargs.get("border_bf", kwargs.get("bottom", "\u2500\u2500"))
+            # border corners.
+            self.border_tl = kwargs.get("border_tl",
+                                        kwargs.get("top", kwargs.get("left", "\u250C\u2500")))
+            self.border_bl = kwargs.get("border_bl",
+                                        kwargs.get("bottom", kwargs.get("left",  "\u2514\u2500")))
+            self.border_tr = kwargs.get("border_tr",
+                                        kwargs.get("top", kwargs.get("right", "\u2500\u2510")))
+            self.border_br = kwargs.get("border_br",
+                                        kwargs.get("bottom", kwargs.get("right", "\u2500\u2518")))
 
         def refresh(self):
             self.console.console.addstr(0, 0, self.border_tl + self.border_tf * (self.width - 2) +
@@ -214,7 +216,7 @@ class Render:
                 self.console.console.addstr(i+1, 0, self.border_lf)
                 self.console.console.addstr(i+1, (self.width-1) * self.cell_width, self.border_rf)
 
-            self.console.console.addstr((self.height - 2) * self.cell_height, 0, self.border_bl +
+            self.console.console.addstr((self.height - 1) * self.cell_height, 0, self.border_bl +
                                         self.border_bf * (self.width - 2) + self.border_br)
 
             self.console.refresh()
