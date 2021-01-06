@@ -133,9 +133,7 @@ class Render:
                 max_text_length = self.width * self.cell_width - col
     
                 display_text = text[: max_text_length]
-    
-                pass
-    
+
             if self.height is None or row < self.height:
                 self.console.addstr(self.y_offset * self.cell_height + row,
                                     self.x_offset * self.cell_width + col,
@@ -220,6 +218,27 @@ class Render:
                                         self.border_bf * (self.width - 2) + self.border_br)
 
             self.console.refresh()
+
+        @staticmethod
+        def from_map_io(map_io: MapIO, **kwargs):
+            """ Return the render layer object to create a border for the map system. """
+            if type(map_io) == ScrollingMapIO:
+                map_io: ScrollingMapIO
+                window = map_io.window_size
+            else:
+                window = map_io.map_dims
+
+            window = (0, 0, int(window[0]), int(window[1]))
+
+            cell_dims = np.array(
+                [list(line) for line in map_io.main_map.MAP_CHARS['default'].split("\n")],
+                dtype=np.unicode).T.shape
+
+            render_layer = Render.Border(window=window,
+                                         cell_dims=cell_dims,
+                                         **kwargs)
+
+            return render_layer
 
 
 class GameTrigger:
@@ -327,7 +346,7 @@ class GameSysIO:
         """ Initialize curses and hide the cursor. The methods of this
             new instantiated object are those that the key listener events
             will be passed to. """
-        self.render = Render.Layer() if render is None else render
+        self.render = Render.BaseLayer() if render is None else render
         self.exception = None
         self.exit_code = None
         self.triggers = []
@@ -361,7 +380,6 @@ class GameSysIO:
         with keyboard.Listener(on_press=self.on_press,
                                on_release=self.on_release,
                                suppress=True) as listener:
-            time.sleep(0.1)
             self.render.erase()
             self.draw_init()
             self.render.refresh()
@@ -422,7 +440,14 @@ class MenuSysIO(GameSysIO):
         """ Create a title screen or menu. """
         super().__init__(render=render)
 
-        self.art = ascii_art(title, shadow='small_lr', font_size=font_size)
+        if title is not None and len(title.strip()) != 0:
+            self.art = ascii_art(title,
+                                 shadow='small_lr',
+                                 font_size=font_size,
+                                 x_margin=5,
+                                 y_margin=5)
+        else:
+            self.art = ""
 
         self.option_choices = [
             "Start", "Quit"
@@ -445,6 +470,7 @@ class MenuSysIO(GameSysIO):
 
         for i in range(len(self.option_choices)):
             self.render.addstr(len(self.board)+2+i, 3, self.option_choices[i])
+
         self.render.addstr(len(self.board)+2, 1, ">")
 
         self.render.refresh()
