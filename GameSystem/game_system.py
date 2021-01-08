@@ -7,7 +7,6 @@ from PIL import Image, ImageDraw, ImageFont
 import numpy as np
 from threading import Thread
 import os
-import time
 from typing import Callable, Union, List, Tuple
 
 """
@@ -99,15 +98,34 @@ def ascii_art(text: str, font: str = "Arial.ttf", font_size: int = 15,
     return string
 
 
-def start_game_sys(game_queue: list):
-    """ Start the game system with the given list. """
-    GameSysIO.game_queue = game_queue
-    GameSysIO.running = True
-    game_thread = Thread(target=GameSysIO.game_timer)
-    game_thread.start()
+class Game:
+    console = None
+
+    base_layers = []
+
+    @staticmethod
+    def add_base_layer(render: Render.BaseLayer):
+        Game.base_layers.append(render)
+
+    @staticmethod
+    def create_curses_screen():
+        Game.console = curses.initscr()
+        for layer in Game.base_layers:
+            layer.console = Game.console
+        curses.curs_set(0)
+
+    @staticmethod
+    def start_game_sys(game_queue: list):
+        """ Start the game system with the given list. """
+        Game.create_curses_screen()
+        GameSysIO.game_queue = game_queue
+        GameSysIO.running = True
+        game_thread = Thread(target=GameSysIO.game_timer)
+        game_thread.start()
 
 
 class Render:
+    """ Render layer types, BaseLayer interfaces directly with curses library. """
     class RenderException(Exception):
         def __init__(self, msg=None):
             """ Basic exception for errors raised by the render layer system. """
@@ -119,14 +137,29 @@ class Render:
     class Layer:
         """ Create a render layer for curses. """
         def __init__(self, window: Tuple[int, int, int, int] = (0, 0, None, None),
-                     cell_dims: Tuple[int, int] = (2, 1), render_super_layer: Render.Layer = None):
+                     cell_dims: Tuple[int, int] = (2, 1),
+                     render_super_layer: Render.Layer = None):
             """ Create a render layer with (x,y)-offset and a screen dimension. """
             self.x_offset, self.y_offset, self.width, self.height = window
             self.cell_width, self.cell_height = cell_dims
             self.console = render_super_layer
             if self.console is None:
                 self.console = Render.BaseLayer((0, 0, window[2], window[3]), cell_dims)
-    
+
+        def set_super_layer(self, layer):
+            self.console = layer
+
+        def layer_above_base(self):
+            if type(self.console) == Render.BaseLayer:
+                return self
+            else:
+                return self.console.layer_above_base()
+
+        def __str__(self):
+            """ Return String representation """
+            return f"RenderLayer<{self.x_offset}, {self.y_offset}, " \
+                   f"{self.width}, {self.height}>\n\t" + str(self.console)
+
         def addstr(self, row, col, text):
             display_text = text
             if self.width is not None:
@@ -151,9 +184,14 @@ class Render:
                      cell_dims: Tuple[int, int] = (2, 1)):
             """ Create a render layer with (x,y)-offset and a screen dimension. """
             super().__init__(window, cell_dims, self)
-            self.console = curses.initscr()  # initialize is our playground
-            curses.curs_set(0)
-    
+            self.console = None
+            Game.add_base_layer(self)
+
+        def __str__(self):
+            """ Return String representation """
+            return f"BaseLayer<{self.x_offset}, {self.y_offset}, " \
+                   f"{self.width}, {self.height}>"
+
         def addstr(self, row, col, text):
             display_text = text
             if self.width is not None:
@@ -164,18 +202,21 @@ class Render:
                 pass
     
             if self.height is None or row < self.height:
-                self.console.addstr(self.y_offset * self.cell_height + row,
-                                    self.x_offset * self.cell_width + col,
-                                    display_text)
+                if self.console is not None:
+                    self.console.addstr(self.y_offset * self.cell_height + row,
+                                        self.x_offset * self.cell_width + col,
+                                        display_text)
     
         def erase(self):
-            self.console.erase()
+            if self.console is not None:
+                self.console.erase()
     
         def refresh(self):
-            self.console.refresh()
+            if self.console is not None:
+                self.console.refresh()
 
     class Border(Layer):
-        """ Creates a render layer with a border """
+        """ Creates a render layer with a border. """
         def __init__(self, window: Tuple[int, int, int, int] = (0, 0, None, None),
                      cell_dims: Tuple[int, int] = (2, 1), render_super_layer: Render.Layer = None,
                      **kwargs):
@@ -192,19 +233,57 @@ class Render:
                                         render_super_layer=render_border)
             super().__init__(window, cell_dims, render_super)
             # border faces
-            self.border_tf = kwargs.get("border_tf", kwargs.get("top", "\u2500\u2500"))
-            self.border_lf = kwargs.get("border_lf", kwargs.get("left", "\u2502 "))
-            self.border_rf = kwargs.get("border_rf", kwargs.get("right", " \u2502"))
-            self.border_bf = kwargs.get("border_bf", kwargs.get("bottom", "\u2500\u2500"))
+            border_all = kwargs.get("all", None)
+
+            border_horizontal = kwargs.get("horizontal", border_all)
+            border_vertical = kwargs.get("vertical", border_all)
+            border_corner = kwargs.get("corner", border_all)
+
+            border_top = kwargs.get("top", border_horizontal)
+            border_bottom = kwargs.get("bottom", border_horizontal)
+            border_left = kwargs.get("left", border_vertical)
+            border_right = kwargs.get("right", border_vertical)
+
+            border_tf = kwargs.get("border_tf", border_top)
+            border_lf = kwargs.get("border_lf", border_left)
+            border_rf = kwargs.get("border_rf", border_right)
+            border_bf = kwargs.get("border_bf", border_bottom)
+
+            border_tl = kwargs.get("border_tl", border_top)
+            border_bl = kwargs.get("border_bl", border_bottom)
+            border_tr = kwargs.get("border_tr", border_top)
+            border_br = kwargs.get("border_br", border_bottom)
+
+            # border faces.
+            self.border_tf = border_tf if border_tf is not None else "\u2500"
+            self.border_lf = border_lf if border_lf is not None else "\u2502"
+            self.border_rf = border_rf if border_rf is not None else "\u2502"
+            self.border_bf = border_bf if border_tf is not None else "\u2500"
             # border corners.
-            self.border_tl = kwargs.get("border_tl",
-                                        kwargs.get("top", kwargs.get("left", "\u250C\u2500")))
-            self.border_bl = kwargs.get("border_bl",
-                                        kwargs.get("bottom", kwargs.get("left",  "\u2514\u2500")))
-            self.border_tr = kwargs.get("border_tr",
-                                        kwargs.get("top", kwargs.get("right", "\u2500\u2510")))
-            self.border_br = kwargs.get("border_br",
-                                        kwargs.get("bottom", kwargs.get("right", "\u2500\u2518")))
+            self.border_tl = border_tl if border_tl is not None else \
+                border_top if border_top is not None else \
+                border_left if border_left is not None else \
+                border_corner if border_corner is not None else "\u250C"
+
+            self.border_bl = border_bl if border_bl is not None else \
+                border_bottom if border_bottom is not None else \
+                border_left if border_left is not None else \
+                border_corner if border_corner is not None else "\u2514"
+
+            self.border_tr = border_tr if border_tr is not None else \
+                border_top if border_top is not None else \
+                border_right if border_right is not None else \
+                border_corner if border_corner is not None else "\u2510"
+
+            self.border_br = border_br if border_br is not None else \
+                border_bottom if border_bottom is not None else \
+                border_right if border_right is not None else \
+                border_corner if border_corner is not None else "\u2518"
+
+        def __str__(self):
+            """ Return String representation """
+            return f"BorderLayer<{self.x_offset}, {self.y_offset}, " \
+                   f"{self.width}, {self.height}>\n\t" + str(self.console)
 
         def refresh(self):
             self.console.console.addstr(0, 0, self.border_tl + self.border_tf * (self.width - 2) +
@@ -228,17 +307,40 @@ class Render:
             else:
                 window = map_io.map_dims
 
-            window = (0, 0, int(window[0]), int(window[1]))
-
             cell_dims = np.array(
                 [list(line) for line in map_io.main_map.MAP_CHARS['default'].split("\n")],
                 dtype=np.unicode).T.shape
 
+            width, height = window
+            cell_width, cell_height = cell_dims
+            width *= cell_width
+            height *= cell_height
+
+            window = (0, 0, width+2, height+2)
+
             render_layer = Render.Border(window=window,
-                                         cell_dims=cell_dims,
+                                         cell_dims=(1, 1),
                                          **kwargs)
 
             return render_layer
+
+    class ReplaceFilter(Layer):
+        def __init__(self, window: Tuple[int, int, int, int] = (0, 0, None, None),
+                     cell_dims: Tuple[int, int] = (2, 1),
+                     render_super_layer: Render.Layer = None,
+                     replace_with: dict[str, str] = None):
+            super().__init__(window=window,
+                             cell_dims=cell_dims,
+                             render_super_layer=render_super_layer)
+            self.replace_with = replace_with if replace_with is not None else {}
+
+        def addstr(self, row, col, text):
+            display_text = text
+
+            for key, value in self.replace_with.items():
+                display_text = display_text.replace(key, value)
+
+            super().addstr(row, col, display_text)
 
 
 class GameTrigger:
@@ -346,13 +448,16 @@ class GameSysIO:
         """ Initialize curses and hide the cursor. The methods of this
             new instantiated object are those that the key listener events
             will be passed to. """
-        self.render = Render.BaseLayer() if render is None else render
+        self.render = Render.Layer() if render is None else render
         self.exception = None
         self.exit_code = None
         self.triggers = []
         self.key_presses = set()
 
     game_queue = []
+
+    def set_render(self, replace_render):
+        self.render = replace_render
 
     def on_press(self, key: keyboard.Key):
         """ On a key press, how to handle the rising edge (press). """
@@ -436,7 +541,7 @@ class MenuSysIO(GameSysIO):
     """ Initialize a title screen / menu screen IO system.
         Displays ascii art of the game title or particular menu. """
     def __init__(self, title: str, option_choices: list[str] = None, option_choice: int = 0,
-                 font_size: int = 15, render: Render.Layer = None):
+                 font_size: int = 15, render: Render.Layer = None, **kwargs):
         """ Create a title screen or menu. """
         super().__init__(render=render)
 
@@ -449,12 +554,13 @@ class MenuSysIO(GameSysIO):
         else:
             self.art = ""
 
-        self.option_choices = [
-            "Start", "Quit"
-        ]
-        if option_choices is not None:
-            self.option_choices = option_choices
-        self.option_choice = min(len(self.option_choices)-1, max(0, option_choice))
+        self.option_choices = ["Start", "Quit"] if option_choices is None else option_choices
+        self.option_choice_round = kwargs.get("option_choice_round", "hard_bound")
+
+        self.option_choice = {
+            "hard_bound": min(len(self.option_choices)-1, max(0, option_choice)),
+            "mod_round": option_choice % len(self.option_choices)
+        }.get(self.option_choice_round, 0)
 
         self.board = str(self.art).split("\n")
 

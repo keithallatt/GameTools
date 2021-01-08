@@ -1,5 +1,6 @@
-from GameSystem.game_system import MenuSysIO, ScrollingMapIO, start_game_sys, Render
+from GameSystem.game_system import MenuSysIO, ScrollingMapIO, Game, Render
 from MapSystem.map import MazeSystem
+
 
 if __name__ == "__main__":
     main_title = MenuSysIO(title="Start",
@@ -12,10 +13,19 @@ if __name__ == "__main__":
     map_system = MazeSystem(41, 41)
     map_system.declare_map_char_block("PORTAL", "[]", walkable=True)
 
-    width, height = 21, 21
+    map_sys = ScrollingMapIO(map_system, (1, 1), (21, 21))
 
-    map_sys = ScrollingMapIO(map_system, (1, 1), (width, height))
-    map_sys.render = Render.Border.from_map_io(map_sys)
+    border_render_1 = Render.Border.from_map_io(map_sys)
+    border_render_2 = Render.Border.from_map_io(map_sys)
+
+    replace_render = Render.ReplaceFilter(replace_with={
+        "  ": "()"
+    })
+
+    map_sys.set_render(border_render_1)
+
+    # TODO: make add_render that takes in a new Render Layer and inserts it as the map_sys
+    #  render, where the old render is set as
 
     main_title.link_sys_change(
         [], lambda x: x.chosen and x.chosen_option.startswith("Quit"),
@@ -45,4 +55,4 @@ if __name__ == "__main__":
 
     map_sys.link_relocation((-2, -2), (1, 1))
 
-    start_game_sys([main_title])
+    Game.start_game_sys([main_title])
