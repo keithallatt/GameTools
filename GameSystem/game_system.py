@@ -18,7 +18,7 @@ If not running in Pycharm: (curses library)
 
 
 def ascii_art(text: str, font: str = "Arial.ttf", font_size: int = 15,
-              x_margin: int = 0, y_margin: int = 0, x_padding: int = 1, y_padding: int = 1,
+              x_margin: int = 0, y_margin: int = 0, x_pad: int = 1, y_pad: int = 1,
               shadow_char: str = u'\u2591', fill_char: str = u'\u2588', back_char: str = u' ',
               double_width: bool = False, trim: bool = True, shadow: Union[int, str] = 0):
     """ Draw Ascii Art of text of a particular font and font size. """
@@ -41,8 +41,8 @@ def ascii_art(text: str, font: str = "Arial.ttf", font_size: int = 15,
     try:
         font_object = ImageFont.truetype(font, font_size)
     except OSError:
-        font_object = ImageFont.truetype(os.sep.join(['', 'Library', 'Fonts', '']) + font,
-                                         font_size)
+        font_object = ImageFont.truetype(
+            os.sep.join(['', 'Library', 'Fonts', '']) + font, font_size)
 
     size = font_object.getsize(text)
 
@@ -78,37 +78,46 @@ def ascii_art(text: str, font: str = "Arial.ttf", font_size: int = 15,
             pixels = pixels[:-1, :]
 
     new_w, new_h = pixels.shape
-    new_w += 2 * x_padding
-    new_h += 2 * y_padding
+    new_w += 2 * x_pad
+    new_h += 2 * y_pad
 
     new_pixels = np.zeros(shape=(new_w, new_h), dtype=np.uint8)
 
-    new_pixels[x_padding: new_w - x_padding, y_padding: new_h - y_padding] = pixels
-
+    new_pixels[x_pad: new_w - x_pad, y_pad: new_h - y_pad] = pixels
     pixels = new_pixels
 
-    chars = np.array([back_char, shadow_char, fill_char], dtype="U1")[pixels]
+    char_select = np.array(
+        [back_char, shadow_char, fill_char],
+        dtype="U1")
+    chars = char_select[pixels]
     strings = chars.view('U' + str(chars.shape[1])).flatten()
 
     string = "\n".join(strings)
 
     if double_width:
-        string = "\n".join(["".join([char * 2 for char in line]) for line in string.split("\n")])
+        string = "\n".join(["".join([char * 2 for char in line])
+                            for line in string.split("\n")])
 
     return string
 
 
 class Game:
+    """ Represents the final composed game. All base render layers are added, and when the
+        console is initialized, the base render layers are given the curses console to use as
+        their backend. """
     console = None
 
     base_layers = []
 
     @staticmethod
     def add_base_layer(render: Render.BaseLayer):
+        """ Add another base layer to the game. """
         Game.base_layers.append(render)
 
     @staticmethod
     def create_curses_screen():
+        """ Initialize the game console, and set as the render
+            console for the base layers. """
         Game.console = curses.initscr()
         for layer in Game.base_layers:
             layer.console = Game.console
@@ -125,10 +134,12 @@ class Game:
 
 
 class Render:
-    """ Render layer types, BaseLayer interfaces directly with curses library. """
+    """ Render layer types, BaseLayer interfaces directly
+        with curses library. """
     class RenderException(Exception):
         def __init__(self, msg=None):
-            """ Basic exception for errors raised by the render layer system. """
+            """ Basic exception for errors raised by the
+                render layer system. """
             if msg is None:
                 msg = "An error occurred with Inventory"
                 super(Render.RenderException, self).__init__(msg)
@@ -136,17 +147,24 @@ class Render:
 
     class Layer:
         """ Create a render layer for curses. """
-        def __init__(self, window: Tuple[int, int, int, int] = (0, 0, None, None),
+        def __init__(self,
+                     window: Tuple[int, int, int, int] = None,
                      render_super_layer: Render.Layer = None):
-            """ Create a render layer with (x,y)-offset and a screen dimension. """
+            """ Create a render layer with (x,y)-offset and
+                a screen dimension. """
+            window = (0, 0, None, None) if window is None else window
             self.window = window
-            self.x_offset, self.y_offset, self.width, self.height = window
+            self.x_off, self.y_off, self.width, self.height = window
             self.console = render_super_layer
             if self.console is None:
                 self.console = Render.BaseLayer((0, 0, window[2], window[3]))
 
         def set_super_layer(self, layer):
-            self.__init__(window=self.window, render_super_layer=layer)
+            self.console = layer
+            if self.console is None:
+                self.console = Render.BaseLayer(
+                    window=(0, 0, self.width, self.height)
+                )
 
         def layer_above_base(self):
             if type(self.console) == Render.BaseLayer:
@@ -156,20 +174,18 @@ class Render:
 
         def __str__(self):
             """ Return String representation """
-            return f"RenderLayer<{self.x_offset}, {self.y_offset}, " \
-                   f"{self.width}, {self.height}>\n\t" + str(self.console)
+            return f"RenderLayer<{self.x_off}, {self.y_off}, " \
+                   f"{self.width}, {self.height}>\n\t" + \
+                   str(self.console)
 
         def addstr(self, row, col, text):
             display_text = text
             if self.width is not None:
                 max_text_length = self.width - col
-    
                 display_text = text[: max_text_length]
 
             if self.height is None or row < self.height:
-                self.console.addstr(self.y_offset + row,
-                                    self.x_offset + col,
-                                    display_text)
+                self.console.addstr(self.y_off + row, self.x_off + col, display_text)
 
         def erase(self):
             self.console.erase()
@@ -179,15 +195,16 @@ class Render:
 
     class BaseLayer(Layer):
         """ Create a base render layer for curses. """
-        def __init__(self, window: Tuple[int, int, int, int] = (0, 0, None, None)):
-            """ Create a render layer with (x,y)-offset and a screen dimension. """
+        def __init__(self, window: Tuple[int, int, int, int] = None):
+            """ Create a render layer with (x,y)-offset and
+                a screen dimension. """
             super().__init__(window, self)
             self.console = None
             Game.add_base_layer(self)
 
         def __str__(self):
             """ Return String representation """
-            return f"BaseLayer<{self.x_offset}, {self.y_offset}, " \
+            return f"BaseLayer<{self.x_off}, {self.y_off}, " \
                    f"{self.width}, {self.height}>"
 
         def addstr(self, row, col, text):
@@ -201,8 +218,8 @@ class Render:
     
             if self.height is None or row < self.height:
                 if self.console is not None:
-                    self.console.addstr(self.y_offset + row,
-                                        self.x_offset + col,
+                    self.console.addstr(self.y_off + row,
+                                        self.x_off + col,
                                         display_text)
     
         def erase(self):
@@ -278,7 +295,7 @@ class Render:
 
         def __str__(self):
             """ Return String representation """
-            return f"BorderLayer<{self.x_offset}, {self.y_offset}, " \
+            return f"BorderLayer<{self.x_off}, {self.y_off}, " \
                    f"{self.width}, {self.height}>\n\t" + str(self.console)
 
         def refresh(self):
@@ -449,6 +466,7 @@ class GameSysIO:
     game_queue = []
 
     def set_render(self, replace_render):
+        """ Set the render layer this system writes to. """
         self.render = replace_render
 
     def on_press(self, key: keyboard.Key):

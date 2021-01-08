@@ -16,16 +16,18 @@ class PythonDocs:
         """ Get docstrings from object but return an empty string if no docstrings exist. """
         if thing.__doc__ is not None:
             # rudimentary grammar check
-            if thing.__doc__.strip() != "":
-                if not thing.__doc__.strip().endswith("."):
+            doc = thing.__doc__
+            if doc.strip() != "":
+                if not doc.strip().endswith("."):
                     print("No '.' ending:", thing)
-                if not thing.__doc__.strip()[0] == thing.__doc__.strip()[0].upper():
+                if not doc.strip()[0] == doc.strip()[0].upper():
                     print("No capitalization:", thing)
             else:
                 print("Missing docstring:", thing)
 
-            return thing.__doc__
+            return doc
         else:
+            print("Missing docstring:", thing)
             return ""
 
     @staticmethod
@@ -155,7 +157,6 @@ class PythonDocs:
                     yield "</td>\n</tr>\n"
 
                 yield "</table><br />\n"
-
 
             for cls in class_members:
                 for thing in PythonDocs.generate_class_python_docs(cls):
