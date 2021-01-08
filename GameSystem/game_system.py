@@ -137,17 +137,16 @@ class Render:
     class Layer:
         """ Create a render layer for curses. """
         def __init__(self, window: Tuple[int, int, int, int] = (0, 0, None, None),
-                     cell_dims: Tuple[int, int] = (2, 1),
                      render_super_layer: Render.Layer = None):
             """ Create a render layer with (x,y)-offset and a screen dimension. """
+            self.window = window
             self.x_offset, self.y_offset, self.width, self.height = window
-            self.cell_width, self.cell_height = cell_dims
             self.console = render_super_layer
             if self.console is None:
-                self.console = Render.BaseLayer((0, 0, window[2], window[3]), cell_dims)
+                self.console = Render.BaseLayer((0, 0, window[2], window[3]))
 
         def set_super_layer(self, layer):
-            self.console = layer
+            self.__init__(window=self.window, render_super_layer=layer)
 
         def layer_above_base(self):
             if type(self.console) == Render.BaseLayer:
@@ -163,15 +162,15 @@ class Render:
         def addstr(self, row, col, text):
             display_text = text
             if self.width is not None:
-                max_text_length = self.width * self.cell_width - col
+                max_text_length = self.width - col
     
                 display_text = text[: max_text_length]
 
             if self.height is None or row < self.height:
-                self.console.addstr(self.y_offset * self.cell_height + row,
-                                    self.x_offset * self.cell_width + col,
+                self.console.addstr(self.y_offset + row,
+                                    self.x_offset + col,
                                     display_text)
-    
+
         def erase(self):
             self.console.erase()
     
@@ -180,10 +179,9 @@ class Render:
 
     class BaseLayer(Layer):
         """ Create a base render layer for curses. """
-        def __init__(self, window: Tuple[int, int, int, int] = (0, 0, None, None),
-                     cell_dims: Tuple[int, int] = (2, 1)):
+        def __init__(self, window: Tuple[int, int, int, int] = (0, 0, None, None)):
             """ Create a render layer with (x,y)-offset and a screen dimension. """
-            super().__init__(window, cell_dims, self)
+            super().__init__(window, self)
             self.console = None
             Game.add_base_layer(self)
 
@@ -195,7 +193,7 @@ class Render:
         def addstr(self, row, col, text):
             display_text = text
             if self.width is not None:
-                max_text_length = self.width * self.cell_width - col
+                max_text_length = self.width - col
     
                 display_text = text[: max_text_length]
     
@@ -203,8 +201,8 @@ class Render:
     
             if self.height is None or row < self.height:
                 if self.console is not None:
-                    self.console.addstr(self.y_offset * self.cell_height + row,
-                                        self.x_offset * self.cell_width + col,
+                    self.console.addstr(self.y_offset + row,
+                                        self.x_offset + col,
                                         display_text)
     
         def erase(self):
@@ -218,20 +216,18 @@ class Render:
     class Border(Layer):
         """ Creates a render layer with a border. """
         def __init__(self, window: Tuple[int, int, int, int] = (0, 0, None, None),
-                     cell_dims: Tuple[int, int] = (2, 1), render_super_layer: Render.Layer = None,
+                     render_super_layer: Render.Layer = None,
                      **kwargs):
             if None in window and render_super_layer is None:
                 raise Render.RenderException("Cannot border unbounded render layer.")
 
             width, height = window[2], window[3]
 
-            render_border = Render.Layer(window=(0, 0, width, height),
-                                         cell_dims=cell_dims,
-                                         render_super_layer=render_super_layer)
-            render_super = Render.Layer(window=(1, 1, width-1, height-1),
-                                        cell_dims=cell_dims,
-                                        render_super_layer=render_border)
-            super().__init__(window, cell_dims, render_super)
+            self.render_border = Render.Layer(window=(0, 0, width, height),
+                                              render_super_layer=render_super_layer)
+            self.render_super = Render.Layer(window=(1, 1, width-1, height-1),
+                                             render_super_layer=self.render_border)
+            super().__init__(window, self.render_super)
             # border faces
             border_all = kwargs.get("all", None)
 
@@ -286,14 +282,14 @@ class Render:
                    f"{self.width}, {self.height}>\n\t" + str(self.console)
 
         def refresh(self):
-            self.console.console.addstr(0, 0, self.border_tl + self.border_tf * (self.width - 2) +
-                                        self.border_tr)
+            self.console.console.addstr(0, 0, self.border_tl + self.border_tf *
+                                        (self.width - 2) + self.border_tr)
 
             for i in range(self.height - 2):
                 self.console.console.addstr(i+1, 0, self.border_lf)
-                self.console.console.addstr(i+1, (self.width-1) * self.cell_width, self.border_rf)
+                self.console.console.addstr(i+1, self.width-1, self.border_rf)
 
-            self.console.console.addstr((self.height - 1) * self.cell_height, 0, self.border_bl +
+            self.console.console.addstr(self.height - 1, 0, self.border_bl +
                                         self.border_bf * (self.width - 2) + self.border_br)
 
             self.console.refresh()
@@ -318,19 +314,15 @@ class Render:
 
             window = (0, 0, width+2, height+2)
 
-            render_layer = Render.Border(window=window,
-                                         cell_dims=(1, 1),
-                                         **kwargs)
+            render_layer = Render.Border(window=window, **kwargs)
 
             return render_layer
 
     class ReplaceFilter(Layer):
         def __init__(self, window: Tuple[int, int, int, int] = (0, 0, None, None),
-                     cell_dims: Tuple[int, int] = (2, 1),
                      render_super_layer: Render.Layer = None,
                      replace_with: dict[str, str] = None):
             super().__init__(window=window,
-                             cell_dims=cell_dims,
                              render_super_layer=render_super_layer)
             self.replace_with = replace_with if replace_with is not None else {}
 

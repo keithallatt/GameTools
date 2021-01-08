@@ -15,17 +15,17 @@ if __name__ == "__main__":
 
     map_sys = ScrollingMapIO(map_system, (1, 1), (21, 21))
 
-    border_render_1 = Render.Border.from_map_io(map_sys)
-    border_render_2 = Render.Border.from_map_io(map_sys)
-
     replace_render = Render.ReplaceFilter(replace_with={
-        "  ": "()"
+        " ": "_",
+        "\u2588": " "
     })
 
-    map_sys.set_render(border_render_1)
+    border_render = Render.Border.from_map_io(map_sys, render_super_layer=replace_render)
 
-    # TODO: make add_render that takes in a new Render Layer and inserts it as the map_sys
-    #  render, where the old render is set as
+    border_render = Render.Border(window=(0, 0, 28, 14),
+                                  render_super_layer=border_render)
+
+    map_sys.set_render(border_render)
 
     main_title.link_sys_change(
         [], lambda x: x.chosen and x.chosen_option.startswith("Quit"),
