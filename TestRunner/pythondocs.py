@@ -27,7 +27,10 @@ class PythonDocs:
 
             return doc
         else:
-            print("Missing docstring:", thing)
+            if str(thing).find("class") == -1:
+                print("Missing docstring:", str(thing)[:str(thing).index("at")].strip()+">")
+            else:
+                print("Class missing docstring:", thing)
             return ""
 
     @staticmethod

@@ -16,23 +16,13 @@ if __name__ == "__main__":
     map_sys = ScrollingMapIO(map_system, (1, 1), (21, 21))
 
     replace_render = Render.ReplaceFilter(replace_with={
-        "=": "_",
+        " ": "_",
         "\u2588": " "
     })
 
     border_render = Render.Border.from_map_io(map_sys, render_super_layer=replace_render)
 
-    border_render = Render.Border(window=(0, 0, 28, 14),
-                                  render_super_layer=border_render)
-
-    replace_render = Render.ReplaceFilter(replace_with={
-        " ": "=",
-    }, render_super_layer=border_render)
-
-    # print(replace_render)
-    # quit(0)
-
-    map_sys.set_render(replace_render)
+    map_sys.set_render(border_render)
 
     main_title.link_sys_change(
         [], lambda x: x.chosen and x.chosen_option.startswith("Quit"),
